@@ -1,0 +1,71 @@
+{
+  "name": "stagefabric",
+  "version": "0.1.0",
+  "description": "Compile and execute privacy-safe AI stage graphs across browser, local, edge, and cloud targets.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "author": "Antonio Antenore <50747458+aantenore@users.noreply.github.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aantenore/stagefabric.git"
+  },
+  "homepage": "https://github.com/aantenore/stagefabric#readme",
+  "bugs": {
+    "url": "https://github.com/aantenore/stagefabric/issues"
+  },
+  "keywords": [
+    "agentic-ai",
+    "distributed-inference",
+    "edge-ai",
+    "privacy",
+    "web-ai"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "stagefabric": "./dist/entrypoints/cli.js"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@11.8.0",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
+    "dev": "tsx src/entrypoints/cli.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "oxlint --deny-warnings src test",
+    "prepack": "pnpm run build",
+    "stagefabric": "tsx src/entrypoints/cli.ts",
+    "start": "node dist/entrypoints/cli.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.0.8",
+    "@noble/hashes": "2.2.0",
+    "commander": "15.0.0",
+    "hono": "4.12.30",
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.1",
+    "oxlint": "1.74.0",
+    "prettier": "3.9.5",
+    "tsx": "4.23.1",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}

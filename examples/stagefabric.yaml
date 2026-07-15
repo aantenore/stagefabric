@@ -1,0 +1,152 @@
+evaluatedAt: 2026-07-15T12:00:00.000Z
+
+fabric:
+  apiVersion: stagefabric.dev/v1alpha1
+  kind: Fabric
+  zones:
+    - id: browser
+      trustLevel: 3
+      residencies: [EU]
+    - id: local
+      trustLevel: 2
+      residencies: [EU]
+    - id: edge
+      trustLevel: 2
+      residencies: [EU]
+    - id: cloud
+      trustLevel: 1
+      residencies: [EU]
+  classifications:
+    - id: public
+      rank: 0
+      minTrustLevel: 0
+    - id: internal
+      rank: 1
+      minTrustLevel: 2
+      allowedZones: [browser, local, edge]
+    - id: secret
+      rank: 2
+      minTrustLevel: 3
+      allowedZones: [browser]
+  targets:
+    - id: browser-runtime
+      zone: browser
+      adapter: { kind: demo }
+      capabilities: [classify, privacy.redact, privacy.declassify]
+      expectedP95Ms: 3
+      costMicros: 0
+    - id: local-embed
+      zone: local
+      adapter: { kind: demo }
+      capabilities: [embed]
+      expectedP95Ms: 8
+      costMicros: 0
+    - id: edge-retrieve-a
+      zone: edge
+      adapter: { kind: demo }
+      capabilities: [retrieve, privacy.declassify]
+      expectedP95Ms: 12
+      costMicros: 1
+    - id: edge-retrieve-b
+      zone: edge
+      adapter: { kind: demo }
+      capabilities: [retrieve, privacy.declassify]
+      expectedP95Ms: 18
+      costMicros: 1
+    - id: cloud-reason
+      zone: cloud
+      adapter: { kind: demo }
+      capabilities: [reason]
+      expectedP95Ms: 30
+      costMicros: 8
+  policy:
+    zonePreference: [browser, local, edge, cloud]
+    maxFallbacks: 1
+
+snapshot:
+  apiVersion: stagefabric.dev/v1alpha1
+  kind: CapabilitySnapshot
+  observedAt: 2026-07-15T11:00:00.000Z
+  expiresAt: 2026-07-15T13:00:00.000Z
+  targets:
+    - targetId: browser-runtime
+      healthy: true
+      capabilities: [classify, privacy.redact, privacy.declassify]
+    - targetId: local-embed
+      healthy: true
+      capabilities: [embed]
+    - targetId: edge-retrieve-a
+      healthy: true
+      capabilities: [retrieve, privacy.declassify]
+    - targetId: edge-retrieve-b
+      healthy: true
+      capabilities: [retrieve, privacy.declassify]
+    - targetId: cloud-reason
+      healthy: true
+      capabilities: [reason]
+
+graph:
+  apiVersion: stagefabric.dev/v1alpha1
+  kind: StageGraph
+  metadata:
+    name: privacy-first-rag
+  inputs:
+    - name: text
+      type: text/plain
+      classification: secret
+      residencies: [EU]
+      origin:
+        zone: browser
+        targetId: browser-runtime
+  stages:
+    - id: classify
+      operation: classify
+      inputs:
+        text: { ref: input.text, type: text/plain }
+      outputs:
+        - { name: label, type: label/contact, classification: secret }
+      requirements:
+        capabilities: [classify]
+    - id: redact
+      operation: redact
+      inputs:
+        text: { ref: input.text, type: text/plain }
+        label: { ref: classify.label, type: label/contact }
+      outputs:
+        - { name: safe, type: text/plain, classification: internal }
+      requirements:
+        capabilities: [privacy.redact]
+      declassifications:
+        - output: safe
+          toClassification: internal
+          authorityCapability: privacy.declassify
+          justification: deterministic removal of configured direct identifiers
+    - id: embed
+      operation: embed
+      inputs:
+        text: { ref: redact.safe, type: text/plain }
+      outputs:
+        - { name: vector, type: vector/f32, classification: internal }
+      requirements:
+        capabilities: [embed]
+    - id: retrieve
+      operation: retrieve
+      inputs:
+        vector: { ref: embed.vector, type: vector/f32 }
+      outputs:
+        - { name: context, type: text/plain, classification: public }
+      requirements:
+        capabilities: [retrieve]
+      declassifications:
+        - output: context
+          toClassification: public
+          authorityCapability: privacy.declassify
+          justification: retrieval returns only a public synthetic document identifier
+    - id: reason
+      operation: reason
+      inputs:
+        context: { ref: retrieve.context, type: text/plain }
+      outputs:
+        - { name: answer, type: text/plain, classification: public }
+      requirements:
+        capabilities: [reason]
