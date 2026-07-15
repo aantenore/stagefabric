@@ -1,6 +1,13 @@
 import { z } from 'zod';
 
 export const STAGEFABRIC_API_VERSION = 'stagefabric.dev/v1alpha1' as const;
+export const INTERNAL_OPERATION_CAPABILITY_PREFIX =
+  'stagefabric.operation/' as const;
+export const sha256DigestSchema = z.string().regex(/^sha256:[0-9a-f]{64}$/);
+
+export function internalOperationCapability(operation: string): string {
+  return `${INTERNAL_OPERATION_CAPABILITY_PREFIX}${operation}`;
+}
 
 const nameSchema = z.string().trim().min(1).max(128);
 const graphIdentifierSchema = z
@@ -10,7 +17,11 @@ const graphIdentifierSchema = z
     "must start with a lowercase letter and contain only lowercase letters, digits, '_' or '-'",
   )
   .max(64);
-const capabilitySchema = z.string().trim().min(1).max(256);
+const observedCapabilitySchema = z.string().trim().min(1).max(256);
+const capabilitySchema = observedCapabilitySchema.refine(
+  (capability) => !capability.startsWith(INTERNAL_OPERATION_CAPABILITY_PREFIX),
+  'reserved for StageFabric operation availability evidence',
+);
 const dataTypeSchema = z.string().trim().min(1).max(256);
 export const timestampSchema = z.string().datetime({ offset: true });
 
@@ -160,7 +171,8 @@ export const capabilityTargetStateSchema = z
   .object({
     targetId: nameSchema,
     healthy: z.boolean(),
-    capabilities: uniqueStrings(capabilitySchema),
+    // Snapshots may contain trusted, internally derived operation evidence.
+    capabilities: uniqueStrings(observedCapabilitySchema),
     observedAt: timestampSchema.optional(),
     expiresAt: timestampSchema.optional(),
     expectedP95Ms: z.number().int().min(0).optional(),
@@ -182,6 +194,7 @@ export const capabilityTargetStateSchema = z
 const capabilitySnapshotShape = {
   apiVersion: z.literal(STAGEFABRIC_API_VERSION),
   kind: z.literal('CapabilitySnapshot'),
+  bindingDigest: sha256DigestSchema.optional(),
   observedAt: timestampSchema,
   expiresAt: timestampSchema,
   targets: z.array(capabilityTargetStateSchema),
@@ -218,7 +231,7 @@ export const capabilitySnapshotContentSchema = z
 export const capabilitySnapshotSchema = z
   .object({
     ...capabilitySnapshotShape,
-    digest: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+    digest: sha256DigestSchema,
   })
   .strict()
   .superRefine(validateSnapshotTimeline);

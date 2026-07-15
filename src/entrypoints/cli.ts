@@ -1,11 +1,17 @@
 #!/usr/bin/env node
-import { pathToFileURL } from 'node:url';
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { Command, CommanderError, InvalidArgumentError } from 'commander';
 
 import { loadConfigBundle } from '../adapters/config-bundle.js';
+import {
+  loadLiveRunBundle,
+  loadRuntimeBindingsFile,
+} from '../adapters/live-run-bundle.js';
 import { planStageGraph } from '../application/planner.js';
 import { runDemo } from '../composition/demo.js';
+import { runLiveStageGraph } from '../composition/live-runner.js';
 import { startStageFabricServer } from './api.js';
 import { safeErrorBody } from './safe-error.js';
 
@@ -37,7 +43,7 @@ export function createStageFabricCli(io: CliIo = defaultIo): Command {
   const program = new Command()
     .name('stagefabric')
     .description('Plan and execute privacy-safe hybrid AI stage graphs')
-    .version('0.1.0')
+    .version('0.2.0-alpha.1')
     .showSuggestionAfterError()
     .configureOutput({
       writeOut: io.writeOut,
@@ -67,6 +73,37 @@ export function createStageFabricCli(io: CliIo = defaultIo): Command {
         io.writeOut,
         planStageGraph(await loadConfigBundle(bundlePath)),
       );
+    });
+
+  program
+    .command('run')
+    .description(
+      'Probe trusted runtime bindings, compile a fresh plan, and execute it',
+    )
+    .argument('<bundle>', 'path to a live-run YAML bundle')
+    .requiredOption(
+      '--bindings <path>',
+      'operator-owned runtime bindings file (never loaded from the graph)',
+    )
+    .action(async (bundlePath: string, options: { bindings: string }) => {
+      const [bundle, bindings] = await Promise.all([
+        loadLiveRunBundle(bundlePath),
+        loadRuntimeBindingsFile(options.bindings),
+      ]);
+      const result = await runLiveStageGraph({ ...bundle, bindings });
+      writeJson(io.writeOut, {
+        graphName: result.plan.graphName,
+        bindingDigest: result.bindingDigest,
+        snapshotDigest: result.snapshot.digest,
+        planDigest: result.plan.digest,
+        placements: result.execution.stages.map((stage) => ({
+          stageId: stage.stageId,
+          targetId: stage.targetId,
+          zone: stage.zone,
+        })),
+        outputs: result.outputs,
+        trace: result.execution.trace,
+      });
     });
 
   program
@@ -118,11 +155,23 @@ export async function runCli(
   }
 }
 
-const invokedPath = process.argv[1];
-if (
-  invokedPath !== undefined &&
-  import.meta.url === pathToFileURL(invokedPath).href
-) {
+type Realpath = (path: string) => string;
+
+/** Handles package-manager bin symlinks without treating an import as execution. */
+export function isDirectCliInvocation(
+  moduleUrl: string,
+  invokedPath: string | undefined,
+  realpath: Realpath = realpathSync,
+): boolean {
+  if (invokedPath === undefined) return false;
+  try {
+    return realpath(fileURLToPath(moduleUrl)) === realpath(invokedPath);
+  } catch {
+    return false;
+  }
+}
+
+if (isDirectCliInvocation(import.meta.url, process.argv[1])) {
   void runCli().then((exitCode) => {
     process.exitCode = exitCode;
   });

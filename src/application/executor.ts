@@ -1,7 +1,8 @@
-import type {
-  ExecutionPlan,
-  Placement,
-  StageExecutionPlan,
+import {
+  verifyExecutionPlanDigest,
+  type ExecutionPlan,
+  type Placement,
+  type StageExecutionPlan,
 } from './planner.js';
 import {
   StageAdapterError,
@@ -12,10 +13,13 @@ import {
   StageInputPolicyError,
   type StageInputGuard,
 } from '../ports/stage-input-guard.js';
+import { canonicalJson } from '../domain/canonical.js';
 
 const RETRYABLE_PRE_OUTPUT_STATUSES = new Set([429, 502, 503, 504]);
 
 export type ExecutionFailureCode =
+  | 'plan_digest_mismatch'
+  | 'binding_digest_mismatch'
   | 'missing_input'
   | 'adapter_not_registered'
   | 'adapter_failed'
@@ -43,13 +47,13 @@ export interface ExecutionTraceEvent {
 
 export class ExecutionError extends Error {
   readonly code: ExecutionFailureCode;
-  readonly stageId: string;
+  readonly stageId: string | undefined;
   readonly trace: readonly ExecutionTraceEvent[];
   readonly reasonCode: string | undefined;
 
   constructor(options: {
     code: ExecutionFailureCode;
-    stageId: string;
+    stageId?: string;
     trace: readonly ExecutionTraceEvent[];
     reasonCode?: string;
   }) {
@@ -60,6 +64,31 @@ export class ExecutionError extends Error {
     this.trace = options.trace;
     this.reasonCode = options.reasonCode;
   }
+}
+
+function deepFreeze<T>(value: T, seen = new WeakSet<object>()): T {
+  if (typeof value !== 'object' || value === null || seen.has(value)) {
+    return value;
+  }
+  seen.add(value);
+  for (const key of Reflect.ownKeys(value)) {
+    deepFreeze((value as Record<PropertyKey, unknown>)[key], seen);
+  }
+  return Object.freeze(value);
+}
+
+/** Captures a plain immutable plan before any user-supplied async code runs. */
+function immutablePlanSnapshot(plan: ExecutionPlan): ExecutionPlan {
+  let snapshot: ExecutionPlan;
+  try {
+    snapshot = JSON.parse(canonicalJson(plan)) as ExecutionPlan;
+  } catch {
+    throw new ExecutionError({ code: 'plan_digest_mismatch', trace: [] });
+  }
+  if (!verifyExecutionPlanDigest(snapshot)) {
+    throw new ExecutionError({ code: 'plan_digest_mismatch', trace: [] });
+  }
+  return deepFreeze(snapshot);
 }
 
 export interface ExecutePlanRequest {
@@ -156,6 +185,16 @@ function canFallback(
 export async function executePlan(
   request: ExecutePlanRequest,
 ): Promise<ExecutionResult> {
+  const plan = immutablePlanSnapshot(request.plan);
+  const adapters = request.adapters;
+  const guards = Object.freeze([...(request.guards ?? [])]);
+  if (plan.bindingDigest !== adapters.bindingDigest) {
+    throw new ExecutionError({
+      code: 'binding_digest_mismatch',
+      trace: [],
+    });
+  }
+
   const values = new Map<string, unknown>(
     Object.entries(request.inputs).map(([name, value]) => [
       `input.${name}`,
@@ -165,14 +204,14 @@ export async function executePlan(
   const trace: ExecutionTraceEvent[] = [];
   const records: StageExecutionRecord[] = [];
 
-  for (const stage of request.plan.stages) {
-    const inputs = stageInputs(stage, values, trace);
-    const candidates = placements(stage);
+  for (const stage of plan.stages) {
+    const inputs = Object.freeze(stageInputs(stage, values, trace));
+    const candidates = Object.freeze(placements(stage));
     let completed = false;
 
     for (const [index, placement] of candidates.entries()) {
       const attempt = index + 1;
-      const adapter = request.adapters.get(placement.adapterKind);
+      const adapter = adapters.get(placement.adapterKind);
       if (adapter === undefined) {
         trace.push(
           traceEvent(
@@ -192,7 +231,7 @@ export async function executePlan(
       }
 
       try {
-        for (const guard of request.guards ?? []) {
+        for (const guard of guards) {
           await guard.inspect({
             stageId: stage.stageId,
             operation: stage.operation,
@@ -303,7 +342,7 @@ export async function executePlan(
   }
 
   return {
-    planDigest: request.plan.digest,
+    planDigest: plan.digest,
     stages: records,
     values: Object.fromEntries(values),
     trace,

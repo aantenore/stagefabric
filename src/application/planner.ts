@@ -2,6 +2,7 @@ import { compareCodePointStrings, sha256Digest } from '../domain/canonical.js';
 import {
   capabilitySnapshotSchema,
   fabricSchema,
+  internalOperationCapability,
   stageGraphSchema,
   timestampSchema,
   type CapabilitySnapshot,
@@ -55,6 +56,7 @@ export type RejectionReasonCode =
   | 'classification_residency_disallowed'
   | 'trust_too_low'
   | 'residency_unsupported'
+  | 'operation_unavailable'
   | 'capability_not_configured'
   | 'capability_unavailable';
 
@@ -146,12 +148,23 @@ export interface ExecutionPlan {
   graphName: string;
   evaluatedAt: string;
   snapshotDigest: string;
+  bindingDigest?: string;
   stages: readonly StageExecutionPlan[];
   egress: {
     proofs: readonly EgressProof[];
     digest: string;
   };
   digest: string;
+}
+
+/** Detects mutation of a plan after it was produced. This is integrity, not provenance. */
+export function verifyExecutionPlanDigest(plan: ExecutionPlan): boolean {
+  const { digest, ...unsigned } = plan;
+  try {
+    return digest === sha256Digest(unsigned);
+  } catch {
+    return false;
+  }
 }
 
 export interface PlanRequest {
@@ -183,11 +196,7 @@ function safeIssues(error: {
     message: string;
   }[];
 }) {
-  return error.issues.map((issue) => ({
-    code: issue.code,
-    path: issue.path.map(String),
-    message: issue.message,
-  }));
+  return error.issues.map((issue) => ({ code: issue.code }));
 }
 
 function parseRequest(request: PlanRequest): {
@@ -440,6 +449,7 @@ function evaluateTarget(
   evaluatedEpoch: number,
   processingClassification: Classification,
   stage: Stage,
+  requiredOperationCapability: string | undefined,
   requiredCapabilities: readonly string[],
   requiredResidencies: readonly string[],
 ): { candidate?: EligibleCandidate; rejection?: CandidateRejection } {
@@ -514,6 +524,12 @@ function evaluateTarget(
   }
   if (snapshotState !== undefined) {
     const observedCapabilities = new Set(snapshotState.capabilities);
+    if (
+      requiredOperationCapability !== undefined &&
+      !observedCapabilities.has(requiredOperationCapability)
+    ) {
+      reasons.push({ code: 'operation_unavailable' });
+    }
     const unavailable = requiredCapabilities.filter(
       (capability) => !observedCapabilities.has(capability),
     );
@@ -782,6 +798,9 @@ export function planStageGraph(request: PlanRequest): ExecutionPlan {
         evaluatedEpoch,
         processingClassification,
         stage,
+        snapshot.bindingDigest === undefined
+          ? undefined
+          : internalOperationCapability(stage.operation),
         requiredCapabilities,
         requiredResidencies,
       );
@@ -832,6 +851,9 @@ export function planStageGraph(request: PlanRequest): ExecutionPlan {
     graphName: graph.metadata.name,
     evaluatedAt,
     snapshotDigest: snapshot.digest,
+    ...(snapshot.bindingDigest === undefined
+      ? {}
+      : { bindingDigest: snapshot.bindingDigest }),
     stages: plans,
     egress,
   };

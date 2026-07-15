@@ -1,6 +1,6 @@
 {
   "name": "stagefabric",
-  "version": "0.1.0",
+  "version": "0.2.0-alpha.1",
   "description": "Compile and execute privacy-safe AI stage graphs across browser, local, edge, and cloud targets.",
   "type": "module",
   "license": "Apache-2.0",
@@ -29,6 +29,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js"
+    },
+    "./node": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "bin": {
@@ -53,8 +61,10 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "3.0.5",
     "@hono/node-server": "2.0.8",
     "@noble/hashes": "2.2.0",
+    "ai": "7.0.17",
     "commander": "15.0.0",
     "hono": "4.12.30",
     "yaml": "2.9.0",

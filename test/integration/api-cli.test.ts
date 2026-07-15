@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
@@ -7,7 +8,7 @@ import {
   DEMO_EVALUATED_AT,
 } from '../../src/composition/demo.js';
 import { createStageFabricApp } from '../../src/entrypoints/api.js';
-import { runCli } from '../../src/entrypoints/cli.js';
+import { isDirectCliInvocation, runCli } from '../../src/entrypoints/cli.js';
 
 describe('HTTP API', () => {
   const app = createStageFabricApp({
@@ -44,6 +45,15 @@ describe('HTTP API', () => {
     });
   });
 
+  it('does not expose a remotely invokable live-run route', async () => {
+    const response = await app.request('/v1/runs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    });
+    expect(response.status).toBe(404);
+  });
+
   it('runs the demo and returns a safe negative-demo failure', async () => {
     const success = await app.request('/v1/demo/runs', {
       method: 'POST',
@@ -76,6 +86,23 @@ describe('HTTP API', () => {
 });
 
 describe('CLI', () => {
+  it('recognizes an installed package-manager bin symlink by real path', () => {
+    const modulePath = resolve('package', 'dist', 'entrypoints', 'cli.js');
+    const binPath = resolve('package', 'bin', 'stagefabric');
+    const otherPath = resolve('other', 'program');
+    const canonical = (path: string) => (path === binPath ? modulePath : path);
+    expect(
+      isDirectCliInvocation(pathToFileURL(modulePath).href, binPath, canonical),
+    ).toBe(true);
+    expect(
+      isDirectCliInvocation(
+        pathToFileURL(modulePath).href,
+        otherPath,
+        canonical,
+      ),
+    ).toBe(false);
+  });
+
   it('validates the YAML bundle and runs a content-safe demo', async () => {
     let output = '';
     let errors = '';

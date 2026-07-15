@@ -38,11 +38,7 @@ export class ConfigBundleError extends Error {
 }
 
 function safeIssues(error: z.ZodError): readonly unknown[] {
-  return error.issues.map((issue) => ({
-    code: issue.code,
-    path: issue.path.map(String),
-    message: issue.message,
-  }));
+  return error.issues.map((issue) => ({ code: issue.code }));
 }
 
 export function parseConfigBundle(source: string): PlanRequest {
