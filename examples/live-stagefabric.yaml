@@ -1,0 +1,68 @@
+fabric:
+  apiVersion: stagefabric.dev/v1alpha1
+  kind: Fabric
+  zones:
+    - id: local
+      trustLevel: 2
+      residencies: [EU]
+  classifications:
+    - id: public
+      rank: 0
+      minTrustLevel: 0
+  targets:
+    - id: ollama-local
+      zone: local
+      adapter:
+        kind: openai-compatible
+      capabilities: [embedding, text-generation]
+      expectedP95Ms: 100
+      costMicros: 0
+  policy:
+    zonePreference: [local]
+    maxFallbacks: 0
+
+graph:
+  apiVersion: stagefabric.dev/v1alpha1
+  kind: StageGraph
+  metadata:
+    name: local-live-ai
+  inputs:
+    - name: text
+      type: text/plain
+      classification: public
+      origin:
+        zone: local
+    - name: prompt
+      type: text/plain
+      classification: public
+      origin:
+        zone: local
+  stages:
+    - id: embed
+      operation: embed
+      inputs:
+        text:
+          ref: input.text
+          type: text/plain
+      outputs:
+        - name: vector
+          type: vector/f32
+          classification: public
+      requirements:
+        capabilities: [embedding]
+    - id: reason
+      operation: generate
+      inputs:
+        prompt:
+          ref: input.prompt
+          type: text/plain
+      outputs:
+        - name: answer
+          type: text/plain
+          classification: public
+      requirements:
+        capabilities: [text-generation]
+
+inputs:
+  text: Hybrid AI can place privacy-sensitive preprocessing near the user.
+  prompt: Explain hybrid AI stage placement in one sentence.

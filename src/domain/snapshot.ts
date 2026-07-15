@@ -12,6 +12,9 @@ function normalizedSnapshotContent(
   return {
     apiVersion: content.apiVersion,
     kind: content.kind,
+    ...(content.bindingDigest === undefined
+      ? {}
+      : { bindingDigest: content.bindingDigest }),
     observedAt: content.observedAt,
     expiresAt: content.expiresAt,
     targets: [...content.targets]

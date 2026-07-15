@@ -5,8 +5,13 @@ import type {
 
 export class StageAdapterRegistry implements StageAdapterResolver {
   readonly #adapters = new Map<string, StageAdapter>();
+  readonly bindingDigest: string | undefined;
 
-  constructor(adapters: readonly StageAdapter[] = []) {
+  constructor(
+    adapters: readonly StageAdapter[] = [],
+    options: { readonly bindingDigest?: string } = {},
+  ) {
+    this.bindingDigest = options.bindingDigest;
     for (const adapter of adapters) this.register(adapter);
   }
 
