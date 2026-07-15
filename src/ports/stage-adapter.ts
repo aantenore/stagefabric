@@ -18,6 +18,11 @@ export interface StageAdapter {
 
 /** Application-facing lookup port implemented by composition-layer registries. */
 export interface StageAdapterResolver {
+  /**
+   * Digest of the trusted runtime bindings represented by this resolver.
+   * It is intentionally absent for unbound/in-process adapters.
+   */
+  readonly bindingDigest: string | undefined;
   get(kind: string): StageAdapter | undefined;
 }
 

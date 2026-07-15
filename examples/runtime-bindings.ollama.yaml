@@ -1,0 +1,29 @@
+apiVersion: stagefabric.dev/v1alpha1
+kind: RuntimeBindings
+policy:
+  requestTimeoutMs: 30000
+  maxResponseBytes: 1048576
+  snapshotTtlSeconds: 60
+targets:
+  - targetId: ollama-local
+    provider:
+      kind: openai-compatible
+      name: ollama
+      baseUrl: http://127.0.0.1:11434/v1
+    operations:
+      - kind: embedding
+        operation: embed
+        capabilities: [embedding]
+        model: nomic-embed-text
+        input: text
+        output: vector
+        expectedDimensions: 768
+      - kind: generate-text
+        operation: generate
+        capabilities: [text-generation]
+        model: qwen3:4b
+        input: prompt
+        output: answer
+        systemPrompt: Answer concisely and do not reveal hidden reasoning.
+        temperature: 0.2
+        maxOutputTokens: 256
