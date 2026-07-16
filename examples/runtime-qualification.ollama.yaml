@@ -1,0 +1,13 @@
+apiVersion: stagefabric.dev/v1alpha1
+kind: RuntimeQualificationProfile
+limits:
+  totalTimeoutMs: 30000
+  maxConcurrency: 1
+  maxTargets: 1
+  maxOperations: 2
+  maxGenerationOutputTokensPerCall: 256
+targets:
+  - targetId: local-ollama
+    operations:
+      - embed
+      - generate

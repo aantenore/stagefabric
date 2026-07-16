@@ -9,9 +9,12 @@ import {
   loadLiveRunBundle,
   loadRuntimeBindingsFile,
 } from '../adapters/live-run-bundle.js';
+import { loadRuntimeQualificationProfile } from '../adapters/runtime-qualification-profile.js';
 import { planStageGraph } from '../application/planner.js';
+import { RuntimeQualificationError } from '../application/runtime-qualification.js';
 import { runDemo } from '../composition/demo.js';
 import { runLiveStageGraph } from '../composition/live-runner.js';
+import { qualifyConfiguredRuntime } from '../composition/runtime-qualification.js';
 import { startStageFabricServer } from './api.js';
 import { safeErrorBody } from './safe-error.js';
 
@@ -104,6 +107,29 @@ export function createStageFabricCli(io: CliIo = defaultIo): Command {
         outputs: result.outputs,
         trace: result.execution.trace,
       });
+    });
+
+  program
+    .command('qualify')
+    .description('Run the bounded, opt-in runtime operation qualification gate')
+    .requiredOption(
+      '--bindings <path>',
+      'operator-owned sealed or sealable runtime bindings file',
+    )
+    .requiredOption(
+      '--profile <path>',
+      'strict qualification profile with explicit targets and operations',
+    )
+    .action(async (options: { bindings: string; profile: string }) => {
+      const [bindings, profile] = await Promise.all([
+        loadRuntimeBindingsFile(options.bindings),
+        loadRuntimeQualificationProfile(options.profile),
+      ]);
+      const report = await qualifyConfiguredRuntime({ bindings, profile });
+      writeJson(io.writeOut, report);
+      if (!report.qualified) {
+        throw new RuntimeQualificationError('qualification_failed');
+      }
     });
 
   program
