@@ -61,7 +61,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "3.0.5",
+    "@ai-sdk/openai-compatible": "3.0.7",
     "@hono/node-server": "2.0.8",
     "@noble/hashes": "2.2.0",
     "ai": "7.0.17",
