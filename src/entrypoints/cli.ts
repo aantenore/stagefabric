@@ -46,7 +46,7 @@ export function createStageFabricCli(io: CliIo = defaultIo): Command {
   const program = new Command()
     .name('stagefabric')
     .description('Plan and execute privacy-safe hybrid AI stage graphs')
-    .version('0.2.0-alpha.1')
+    .version('0.3.0-alpha.1')
     .showSuggestionAfterError()
     .configureOutput({
       writeOut: io.writeOut,
