@@ -21,7 +21,7 @@ import type {
 import { BoundedFetchError, createBoundedFetch } from './bounded-fetch.js';
 
 const SYNTHETIC_TEXT = 'OK';
-const SYNTHETIC_SYSTEM_TEXT = 'Reply with OK.';
+const SYNTHETIC_SYSTEM_TEXT = 'Return exactly OK.';
 const SYNTHETIC_EMBEDDING_INPUT = 'OK';
 
 const modelsResponseSchema = z

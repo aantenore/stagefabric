@@ -144,7 +144,7 @@ describe('OpenAI-compatible runtime operation qualifier', () => {
           max_tokens: 500,
           temperature: 1.5,
           messages: [
-            { role: 'system', content: 'Reply with OK.' },
+            { role: 'system', content: 'Return exactly OK.' },
             { role: 'user', content: 'OK' },
           ],
         });

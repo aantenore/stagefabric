@@ -4,7 +4,7 @@
   "description": "Compile and execute privacy-safe AI stage graphs across browser, local, edge, and cloud targets.",
   "type": "module",
   "license": "Apache-2.0",
-  "author": "Antonio Antenore <50747458+aantenore@users.noreply.github.com>",
+  "author": "Antonio Antenore <ant_ant95@hotmail.it>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/aantenore/stagefabric.git"
