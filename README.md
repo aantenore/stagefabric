@@ -33,7 +33,7 @@ StageFabric makes that decision deterministic and testable:
 
 ## Status
 
-StageFabric is an experimental `v0.2.0-alpha.1` reference implementation. Its
+StageFabric is an experimental `v0.3.0-alpha.1` reference implementation. Its
 planner is deliberately deterministic and greedy, not a globally optimal
 scheduler. The original in-process demo remains reproducible without credentials
 or model downloads. The opt-in Live Fabric Runner now probes and executes real
