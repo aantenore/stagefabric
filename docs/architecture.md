@@ -28,18 +28,50 @@ flowchart LR
   O --> V["Ollama / vLLM / serving layer"]
 ```
 
+Runtime qualification is a separate, opt-in evidence path:
+
+```mermaid
+flowchart LR
+  B["Sealed RuntimeBindings"] --> S["Strict explicit profile"]
+  S --> A["Generation config admission"]
+  A --> R["Capped qualifier registry by provider.kind + version"]
+  R --> Q["Frozen selected clone + bounded synthetic calls"]
+  Q --> E["Sealed configured-wire-shape-v1 report"]
+  E -. "release evidence only" .-> C["CI / operator gate"]
+```
+
+There is intentionally no edge from a qualification report to the planner,
+capability snapshot, executor, or authority model.
+
+The report has no clock field. Its explicit qualification scope, a fixed producer
+artifact, and trusted registration-supplied qualifier artifact are included in
+its digest instead, preserving deterministic evidence while binding it to named
+implementation semantics. Artifact versions do not establish provenance.
+
+Async qualifier code never receives the evidence objects later used to construct
+the report. The orchestrator retains a private primitive snapshot and gives the
+port a separate recursively frozen target clone containing only admitted selected
+operations.
+
 ## Modules
 
-- `domain`: core-neutral graph/snapshot schemas, immutable contracts, canonical
-  hashing, classifications, and reason codes. The Node-only runtime-binding
-  codec is excluded from `stagefabric/core` and owns the bounded provider kind.
+- `domain`: core-neutral graph/snapshot/runtime-binding schemas, typed contracts,
+  canonical hashing, classifications, and reason codes. Runtime-binding domain
+  contracts are available from `stagefabric/core`; Node YAML/file codecs are not.
 - `application`: planning and execution use cases. Planning is pure; execution
-  depends only on ports.
-- `ports`: stage-adapter resolution and input-policy guard interfaces.
+  depends only on ports. Runtime qualification adds a bounded deterministic
+  orchestrator but never feeds planning.
+- `ports`: stage-adapter resolution, input-policy guard, and provider-keyed
+  runtime-operation qualifier interfaces.
 - `adapters`: configuration codecs, bounded network boundary, capability probe,
-  in-process targets, and the OpenAI-compatible provider adapter.
+  in-process targets, OpenAI-compatible provider adapter, and opt-in qualifier.
 - `entrypoints`: CLI and Hono HTTP API.
 - `composition`: the only place where concrete adapters are registered.
+
+The alpha `RuntimeBindings` provider schema currently admits only the
+OpenAI-compatible wire kind. The qualifier port and report are provider-keyed,
+but adding a non-OpenAI provider requires an explicit binding-schema and adapter
+release; configuration cannot inject a new parser or executable module.
 
 Configuration contains adapter identifiers, never import paths. The composition
 root maps those identifiers to code supplied by the host application.
