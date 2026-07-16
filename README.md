@@ -57,6 +57,9 @@ pnpm stagefabric validate examples/stagefabric.yaml
 pnpm stagefabric plan examples/stagefabric.yaml
 pnpm stagefabric run examples/live-stagefabric.yaml \
   --bindings examples/runtime-bindings.ollama.yaml
+pnpm stagefabric qualify \
+  --bindings examples/runtime-bindings.ollama.yaml \
+  --profile examples/runtime-qualification.ollama.yaml
 pnpm stagefabric serve --host 127.0.0.1 --port 8787
 ```
 
@@ -106,6 +109,46 @@ a provider response no longer contains the protected input. Core planning still
 supports explicit declassification for hosts that supply such controls. Tools,
 side effects, arbitrary HTTP, and public remote execution are explicit non-goals.
 
+### Runtime qualification gate
+
+`stagefabric qualify` is an opt-in compatibility gate for the exact operations
+selected in a strict `RuntimeQualificationProfile`. Generation is admitted only
+when the binding declares `maxOutputTokens` no greater than the profile's
+`maxGenerationOutputTokensPerCall`; otherwise it becomes
+`operation_configuration_unqualified` before credential resolution or inference
+I/O. After admission, each target makes one bounded `/models` request and one
+non-streaming synthetic call per admitted operation. It performs no retry,
+refuses redirects, applies the binding's per-request timeout and response ceiling,
+and caps total deadline and target concurrency from the profile.
+
+The gate qualifies `configured-wire-shape-v1`, not prompt quality or application
+semantics. Generation sends fixed synthetic user content; when a binding has a
+system prompt it sends a fixed synthetic system instruction instead of the real
+content. System-role presence, `temperature`, and the admitted
+`maxOutputTokens` value match the binding exactly. Embedding uses fixed synthetic
+input and verifies finite values with the configured dimension. Tools, streaming,
+and retries remain disabled. If a selected binding references a credential, the
+orchestrator rejects a missing/failing resolver, empty or CR/LF-bearing value, or
+more than 16 KiB of UTF-8 before any qualifier call. Custom credential resolvers
+also receive the total abort signal and should cancel their underlying I/O.
+
+The resulting sealed report contains only the explicit qualification scope,
+digests, a fixed producer version, target/operation identifiers, status, reason
+codes, and the registration-supplied qualifier kind/version (`null` when
+unavailable). Qualifier output cannot override those artifacts; they identify
+trusted registration metadata, not code provenance. The report intentionally has
+no timestamp: artifact versions bind its semantics while the bytes and digest
+remain deterministic. It never contains endpoints, models, credentials, prompt
+content, outputs, response bodies, or raw errors. A report is CI/release evidence
+only: the planner, snapshot, executor, and declassification rules never consume it
+as authority. The checked-in profile is explicit so merely adding a binding
+cannot start inference work.
+
+Real Ollama/vLLM qualification was rechecked but not run on 2026-07-16 because no
+compatible executable, local endpoint, or existing Docker image was available.
+StageFabric therefore remains alpha; real-runtime evidence is required before
+beta promotion.
+
 ## Core contract
 
 The `stagefabric.dev/v1alpha1` planning manifest contains four separately
@@ -129,7 +172,9 @@ its reserved namespace can never grant declassification authority.
 
 See [Architecture](docs/architecture.md), the [v0.1 delivery contract](docs/delivery-contract.md),
 the [v0.2 live-run contract](docs/delivery-contract-v0.2.md),
-[ADR 0002](docs/adr/0002-live-runtime-bindings.md), and the
+[runtime-qualification contract](docs/delivery-contract-v0.3-runtime-qualification.md),
+[ADR 0002](docs/adr/0002-live-runtime-bindings.md),
+[ADR 0003](docs/adr/0003-runtime-qualification-gate.md), and the
 [threat model](docs/threat-model.md).
 
 ## Safety model
@@ -147,9 +192,10 @@ and normalizes upstream failures to content-free reason codes. Probe and inferen
 share an exact-origin/path, redirect-free, deadline- and response-size-bounded
 fetch boundary.
 
-The package exposes `stagefabric/core` for platform-neutral domain, planner,
-executor, and port contracts. Node configuration, HTTP, CLI, demos, and live
-provider adapters remain behind the default or `stagefabric/node` entrypoint.
+The package exposes `stagefabric/core` for platform-neutral domain (including
+runtime-binding and qualification contracts), planner, executor, and port APIs.
+Node YAML/file configuration, HTTP, CLI, demos, and live provider adapters remain
+behind the default or `stagefabric/node` entrypoint.
 
 ## Contributing
 
