@@ -20,32 +20,45 @@ one parsed, sealed binding value. The CLI obtains that registry from a required,
 operator-selected file separate from the graph and resolves only dedicated
 `STAGEFABRIC_*` credential variables.
 
+For transported snapshots, the DSSE bundle, statement, snapshot, report, and
+caller-supplied paths are untrusted. The deployment-owned trust policy, expected
+challenge receipt, wall clock, Sigstore trust root, verifier adapter, and atomic
+challenge store are trusted. The signing identity is external to StageFabric;
+the process stores no signing key. The reference challenge store is trusted only
+as a same-host replay boundary and must be a stable private directory (`0700` on
+POSIX) reused across invocations.
+
 ## Threats and controls
 
-| Threat                                           | Control                                                                                                                                                            |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Raw sensitive data leaves an allowed zone        | Mandatory lineage, hard target eligibility, explicit declassification authority, egress proof tests                                                                |
-| Stale or mutated capability changes placement    | Expiring snapshots with canonical digest; fail closed on expiry or mismatch. The live runner accepts only a same-process probe result                              |
-| External snapshot is mistaken for authority      | SHA-256 is documented as integrity only; cross-process provenance requires a future signature and trust policy                                                     |
-| Runtime binding is swapped after planning        | Snapshot and plan pin `bindingDigest`; executor compares the immutable adapter registry before stage execution                                                     |
-| Async guard mutates a verified plan              | Executor canonical-clones and recursively freezes the plan before invoking user-supplied asynchronous guards                                                       |
-| Availability evidence grants declassification    | Internal operation evidence is a separate eligibility check; its namespace is rejected in public capabilities and authority declarations                           |
-| Model echoes data declared as declassified       | Alpha live runner rejects every declassification before I/O until a trusted output verifier is available                                                           |
-| Config executes attacker code                    | Strict schemas; no `eval`; no module paths or dynamic imports; registry at composition root                                                                        |
-| Graph causes SSRF or destination drift           | Bindings are outside the graph; canonical request snapshot; HTTPS except loopback HTTP; exact origin/path; query/fragment/redirect rejected                        |
-| Oversized or malformed provider response         | Streaming byte ceiling, deadline/abort, AI SDK schema handling, exact output mapping, and exact finite-vector dimension                                            |
-| Secrets or payloads leak to evidence             | Allowlisted traces/errors and projected execution evidence; requested leaf outputs are returned separately                                                         |
-| Duplicate side effects during fallback           | Retry only before output for an allowlisted failure set; bounded attempts; no replay after partial output or ambiguous timeout                                     |
-| Non-deterministic placement evades review        | Integer metrics, canonical sorting, explicit tie-break, stable digest and permutation tests                                                                        |
-| Malicious identifiers forge logs                 | Identifier schema and structured serialization; no concatenated untrusted log lines                                                                                |
-| Qualification profile triggers unbounded work    | Explicit existing target/operation selection; target/operation/generation-token ceilings; target worker cap; total deadline; no executable config                  |
-| Qualification result becomes runtime authority   | Report type is isolated from snapshot/planner/executor inputs; it is documented and tested as release evidence only                                                |
-| Qualification leaks provider or model content    | Fixed synthetic user/system content; sealed allowlisted report fields and reason codes; endpoint/model/credential/prompt content/output/raw error omitted          |
-| Minimal probe passes an unusable configured call | Generation requires explicit bounded output tokens and preserves exact system-role presence, temperature, and token knob; report names the tested wire-shape scope |
-| Missing credential is bypassed by an adapter     | Orchestrator validates resolver success, nonempty/CRLF-free value, and a 16-KiB UTF-8 ceiling before qualifier dispatch                                            |
-| Async qualifier mutates selected evidence        | Private primitive evidence snapshot; separate recursively frozen least-scope port clone; output reconstructed only against private evidence                        |
-| Qualifier output misstates artifact identity     | Registry validates/snapshots trusted kind/version metadata; orchestrator injects artifacts; output-supplied artifact fields fail closed                            |
-| Registry getter/proxy leaks or exhausts work     | Registration count is capped; construction is guarded; malformed, duplicate, getter, or proxy failures become content-free `qualifier_registry_invalid`            |
+| Threat                                                | Control                                                                                                                                                             |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Raw sensitive data leaves an allowed zone             | Mandatory lineage, hard target eligibility, explicit declassification authority, egress proof tests                                                                 |
+| Stale or mutated capability changes placement         | Expiring snapshots with canonical digest; fail closed on expiry or mismatch; authenticated transport also enforces signed challenge and snapshot time windows       |
+| Forged transported snapshot is trusted                | in-toto predicate inside DSSE; Sigstore v0.3 X.509 bundle verification; exact issuer/identity, certificate/transparency thresholds, audience, and policy digest     |
+| Valid signature is mistaken for runtime authority     | Fixed `placement-evidence-only` ceiling; signed evidence cannot grant public capabilities, declassification, credentials, side effects, or semantic truth           |
+| Bundle/evidence changes between plan and run          | Load/copy once; recursively frozen canonical evidence; verify before planning and again before execution; stable authorization-digest and explicit context checks   |
+| Challenge is replayed on one host                     | Bounded challenge lease plus exclusive digest-keyed marker in a stable private `--challenge-store`, consumed before any credential or provider work                 |
+| Runtime binding is swapped after planning             | Snapshot and plan pin `bindingDigest`; executor compares the immutable adapter registry before stage execution                                                      |
+| Async guard mutates a verified plan                   | Executor canonical-clones and recursively freezes the plan before invoking user-supplied asynchronous guards                                                        |
+| Availability evidence grants declassification         | Internal operation evidence is a separate eligibility check; its namespace is rejected in public capabilities and authority declarations                            |
+| Model echoes data declared as declassified            | Alpha live runner rejects every declassification before I/O until a trusted output verifier is available                                                            |
+| Config executes attacker code                         | Strict schemas; no `eval`; no module paths or dynamic imports; registry at composition root                                                                         |
+| Graph causes SSRF or destination drift                | Bindings are outside the graph; canonical request snapshot; HTTPS except loopback HTTP; exact origin/path; query/fragment/redirect rejected                         |
+| Oversized or malformed provider response              | Streaming byte ceiling, deadline/abort, AI SDK schema handling, exact output mapping, and exact finite-vector dimension                                             |
+| Secrets or payloads leak to evidence                  | Allowlisted traces/errors and projected execution evidence; requested leaf outputs are returned separately                                                          |
+| Duplicate side effects during fallback                | Retry only before output for an allowlisted failure set; bounded attempts; no replay after partial output or ambiguous timeout                                      |
+| Non-deterministic placement evades review             | Integer metrics, canonical sorting, explicit tie-break, stable digest and permutation tests                                                                         |
+| Malicious identifiers forge logs                      | Identifier schema and structured serialization; no concatenated untrusted log lines                                                                                 |
+| Qualification profile triggers unbounded work         | Explicit existing target/operation selection; target/operation/generation-token ceilings; target worker cap; total deadline; no executable config                   |
+| Qualification result becomes runtime authority        | Report remains isolated from the core planner/executor and grants nothing; authenticated verification accepts it only as exact digest- and scope-bound prerequisite |
+| Qualification leaks provider or model content         | Fixed synthetic user/system content; sealed allowlisted report fields and reason codes; endpoint/model/credential/prompt content/output/raw error omitted           |
+| Minimal probe passes an unusable configured call      | Generation requires explicit bounded output tokens and preserves exact system-role presence, temperature, and token knob; report names the tested wire-shape scope  |
+| Missing credential is bypassed by an adapter          | Orchestrator validates resolver success, nonempty/CRLF-free value, and a 16-KiB UTF-8 ceiling before qualifier dispatch                                             |
+| Async qualifier mutates selected evidence             | Private primitive evidence snapshot; separate recursively frozen least-scope port clone; output reconstructed only against private evidence                         |
+| Qualifier output misstates artifact identity          | Registry validates/snapshots trusted kind/version metadata; orchestrator injects artifacts; output-supplied artifact fields fail closed                             |
+| Registry getter/proxy leaks or exhausts work          | Registration count is capped; construction is guarded; malformed, duplicate, getter, or proxy failures become content-free `qualifier_registry_invalid`             |
+| Raw challenge or runtime content reaches a public log | Statement contains challenge/evidence digests and bounded metadata only; raw challenge, prompts, responses, endpoints, models, and credentials are excluded         |
+| StageFabric becomes a signing-key custodian           | Statement creation and signing are separate; signing uses an external DSSE/Sigstore client and StageFabric implements verification only                             |
 
 ## Residual risk
 
@@ -65,8 +78,10 @@ requested model results.
 
 The opt-in qualification gate still consumes provider resources and is not a
 performance or model-quality benchmark. Its fixed synthetic user/system content
-proves only the named configured wire-shape contract. Reports have an integrity
-digest but no signature or provenance claim, and cannot authorize placement or
+proves only the named configured wire-shape contract. A standalone report has an
+integrity digest but no signer claim. The authenticated workflow can bind that
+report into a signed statement as an indirect prerequisite, but the report still
+cannot independently authorize placement, declassification, credentials, or
 execution.
 Reports omit timestamps deliberately: producer and qualifier versions bind
 software semantics into a deterministic digest, while execution time belongs to
@@ -82,3 +97,11 @@ Binding and profile hashes are deterministic correlation identifiers, not
 confidentiality controls. A party that already knows most low-entropy
 configuration may test guesses offline, so qualification reports should remain
 inside the same access boundary as other deployment evidence.
+
+The file challenge consumer provides atomic exclusion only to processes sharing
+one filesystem namespace. Deleting, rotating, or replacing `--challenge-store`
+for each run erases replay memory, and networked hosts do not coordinate through
+it. Clustered deployments must use a durable shared implementation of the same
+consumer port. A valid Sigstore bundle authenticates the configured identity and
+statement bytes; it does not prove that the probe host, model, runtime, or
+provider behaved honestly.

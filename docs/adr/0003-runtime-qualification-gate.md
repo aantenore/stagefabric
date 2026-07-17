@@ -1,6 +1,6 @@
 # ADR 0003: bounded runtime operation qualification gate
 
-- Status: accepted for the next alpha increment
+- Status: accepted and implemented in `v0.4.0-alpha.1`
 - Date: 2026-07-15
 
 ## Context
@@ -75,10 +75,13 @@ bind the evidence semantics into the deterministic digest without introducing a
 clock-dependent value; a CI system may record run time outside the report. These
 versions identify software artifacts, not signer identity or provenance.
 
-Qualification reports are release/CI evidence only. The planner, capability
-snapshot, executor, and declassification rules do not accept them as input. A
-successful report grants no runtime authority and does not extend snapshot
-freshness.
+Qualification reports are direct release/CI evidence only. The core planner,
+capability snapshot, executor, and declassification rules do not accept them as
+input. The authenticated-snapshot application path now requires one exact
+qualified report as an indirect prerequisite and binds its digest and operation
+scope into the signed statement. That requirement does not turn the report into
+authority: a successful report grants no target capability, declassification,
+credential access, side-effect permission, or snapshot freshness.
 
 ## Consequences
 
@@ -94,13 +97,23 @@ freshness.
 - A non-cooperative custom credential resolver or qualifier can outlive the
   returned deadline even though its result is ignored; cancellation is a trusted
   port obligation and process isolation remains a host concern.
-- Signed reports, remote qualification services, schedulers, performance
-  benchmarks, and recurring background runs remain out of scope.
+- Standalone report signing, remote qualification services, schedulers,
+  performance benchmarks, and recurring background runs remain out of scope.
 
 ## Evidence status
 
-Contract-mock unit and CLI integration coverage is implemented. The environment
-was rechecked on 2026-07-16: neither `ollama` nor `vllm`, a compatible local
-endpoint, or an existing runtime Docker image was available, so the real-runtime
-smoke was skipped. This evidence is sufficient for an alpha slice, not for beta
-promotion.
+Contract-mock unit and CLI integration coverage is implemented. On 2026-07-17,
+the gate was also run against
+[Ollama 0.32.1](https://github.com/ollama/ollama/releases/tag/v0.32.1) with the
+checked-in `nomic-embed-text:latest` and `qwen3:4b` bindings. Both `embed` and
+`generate` qualified under the exact `configured-wire-shape-v1` profile. A live
+two-stage run then produced a finite 768-dimensional embedding and completed
+both stages. The first attempt usefully exposed Ollama's normalized model alias
+and Qwen's reasoning/output-budget interaction; the explicit fixtures were
+corrected and the rerun passed. No prompt, completion, embedding values, or raw
+response was retained.
+
+The exact content-free digests and observations are recorded in
+[the 2026-07-17 Ollama evidence](../evidence/ollama-qualification-2026-07-17.md).
+This satisfies the alpha real-runtime acceptance target. It remains insufficient
+by itself for beta promotion across multiple runtimes and operating systems.

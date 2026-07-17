@@ -37,11 +37,15 @@ flowchart LR
   A --> R["Capped qualifier registry by provider.kind + version"]
   R --> Q["Frozen selected clone + bounded synthetic calls"]
   Q --> E["Sealed configured-wire-shape-v1 report"]
-  E -. "release evidence only" .-> C["CI / operator gate"]
+  E -. "direct release evidence" .-> C["CI / operator gate"]
+  E -. "digest-bound prerequisite" .-> T["Authenticated snapshot statement"]
 ```
 
-There is intentionally no edge from a qualification report to the planner,
-capability snapshot, executor, or authority model.
+There is intentionally no direct edge from a qualification report to the core
+planner, capability snapshot, executor, or authority model. The authenticated
+application path requires a qualified report as indirect compatibility evidence
+and binds its digest into the signed statement. The report cannot add a target,
+capability, declassification authority, or execution permission.
 
 The report has no clock field. Its explicit qualification scope, a fixed producer
 artifact, and trusted registration-supplied qualifier artifact are included in
@@ -53,20 +57,68 @@ the report. The orchestrator retains a private primitive snapshot and gives the
 port a separate recursively frozen target clone containing only admitted selected
 operations.
 
+Authenticated transport is another application/composition path around the same
+planner and executor:
+
+```mermaid
+flowchart LR
+  C["Verifier-issued challenge lease"] --> S["in-toto statement"]
+  O["Sealed snapshot"] --> S
+  B["Sealed bindings"] --> S
+  Q["Qualified report + profile"] --> S
+  F["Fabric + exact trust policy"] --> S
+  S --> D["External DSSE / Sigstore signer"]
+  D --> V1["Verify copied bundle"]
+  V1 --> P["Pure planner"]
+  P --> V2["Verify same copied bundle again"]
+  V2 --> X["Authorization + context fence"]
+  X --> U["Atomic challenge consume"]
+  U --> E["Existing binding fence + executor"]
+```
+
+All evidence files and the bundle are loaded once. Fabric, bindings, snapshot,
+report, profile, policy, and challenge are parsed into one recursively frozen
+input projection before asynchronous verification. The signed statement is
+decoded only after the verifier port authenticates its DSSE envelope. A stable
+`authorizationDigest` binds every authorization-relevant digest, signer, audience,
+and challenge lease while deliberately excluding the changing `verifiedAt`
+timestamp.
+
+`plan-authenticated` performs the first verification, compiles the plan from the
+same immutable snapshot, checks the plan/fabric/binding context, and returns
+separate content-free trust evidence. It does not consume the challenge, resolve
+a credential, or contact a provider. `run-authenticated` repeats verification
+after planning, compares the stable authorization digest, repeats the context
+checks, and atomically consumes the challenge before the existing live executor
+can construct a provider adapter. This implements requirements A8 and A9 without
+adding signature fields or a trust flag to the core planner.
+
+The reference file consumer uses an exclusive marker named by challenge digest
+inside the operator-supplied `--challenge-store`. The directory must remain
+stable across invocations and private (`0700` on POSIX). This provides same-host
+replay memory; a distributed deployment replaces only the consumer port with a
+shared atomic store.
+
 ## Modules
 
 - `domain`: core-neutral graph/snapshot/runtime-binding schemas, typed contracts,
-  canonical hashing, classifications, and reason codes. Runtime-binding domain
+  canonical hashing, classifications, attestation statement semantics, trust
+  policy, challenge, and reason codes. Runtime-binding and attestation domain
   contracts are available from `stagefabric/core`; Node YAML/file codecs are not.
 - `application`: planning and execution use cases. Planning is pure; execution
   depends only on ports. Runtime qualification adds a bounded deterministic
-  orchestrator but never feeds planning.
+  orchestrator. Snapshot authentication verifies signed-statement semantics and
+  produces a stable, content-free authorization digest.
 - `ports`: stage-adapter resolution, input-policy guard, and provider-keyed
-  runtime-operation qualifier interfaces.
+  runtime-operation qualifier interfaces, plus replaceable attestation-verifier
+  and atomic challenge-consumer boundaries.
 - `adapters`: configuration codecs, bounded network boundary, capability probe,
-  in-process targets, OpenAI-compatible provider adapter, and opt-in qualifier.
-- `entrypoints`: CLI and Hono HTTP API.
-- `composition`: the only place where concrete adapters are registered.
+  in-process targets, OpenAI-compatible provider adapter, opt-in qualifier,
+  bounded evidence-file loaders, official Sigstore verification, and a
+  single-host file challenge consumer.
+- `entrypoints`: CLI, authenticated local workflow, and Hono HTTP API.
+- `composition`: the only place where concrete adapters are registered and the
+  pre-execution trust fence is assembled.
 
 The alpha `RuntimeBindings` provider schema currently admits only the
 OpenAI-compatible wire kind. The qualifier port and report are provider-keyed,

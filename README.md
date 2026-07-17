@@ -33,16 +33,20 @@ StageFabric makes that decision deterministic and testable:
 
 ## Status
 
-StageFabric is an experimental `v0.3.0-alpha.1` reference implementation. Its
+StageFabric is an experimental `v0.4.0-alpha.1` reference implementation. Its
 planner is deliberately deterministic and greedy, not a globally optimal
 scheduler. The original in-process demo remains reproducible without credentials
 or model downloads. The opt-in Live Fabric Runner now probes and executes real
 OpenAI-compatible runtimes while keeping endpoints, models, and credentials out
-of the stage graph.
+of the stage graph. A separate authenticated path can transport a capability
+snapshot across processes, verify its signer and bounded evidence, compile a
+reviewable plan, and consume a single-use challenge before execution.
 
 ## Quick start
 
-Requires Node.js 24+ and pnpm 11+.
+Requires [Node.js 24.15.0](https://nodejs.org/en/blog/release/v24.15.0) or newer
+within 24.x, or Node.js 26+ (`^24.15.0 || >=26.0.0`), plus pnpm 11+. Node.js 25
+is intentionally outside the supported engine range.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -60,6 +64,12 @@ pnpm stagefabric run examples/live-stagefabric.yaml \
 pnpm stagefabric qualify \
   --bindings examples/runtime-bindings.ollama.yaml \
   --profile examples/runtime-qualification.ollama.yaml
+pnpm stagefabric challenge issue --help
+pnpm stagefabric observe --help
+pnpm stagefabric trust-policy create --help
+pnpm stagefabric attestation-statement --help
+pnpm stagefabric plan-authenticated --help
+pnpm stagefabric run-authenticated --help
 pnpm stagefabric serve --host 127.0.0.1 --port 8787
 ```
 
@@ -144,10 +154,128 @@ only: the planner, snapshot, executor, and declassification rules never consume 
 as authority. The checked-in profile is explicit so merely adding a binding
 cannot start inference work.
 
-Real Ollama/vLLM qualification was rechecked but not run on 2026-07-16 because no
-compatible executable, local endpoint, or existing Docker image was available.
-StageFabric therefore remains alpha; real-runtime evidence is required before
-beta promotion.
+The real-runtime gate and live graph were rerun successfully on 2026-07-17 with
+[Ollama 0.32.1](https://github.com/ollama/ollama/releases/tag/v0.32.1),
+`nomic-embed-text:latest`, and `qwen3:4b`: embedding and generation qualified,
+both live stages completed, and the expected 768-dimensional embedding was
+observed. Only digests, dimensions, output length, and status were retained; see
+the [content-free qualification evidence](docs/evidence/ollama-qualification-2026-07-17.md).
+This closes the alpha evidence target, not the broader beta bar for multiple
+runtimes and operating systems.
+
+## Authenticated transported snapshots
+
+`v0.4.0-alpha.1` adds a fail-closed control-plane path around the unchanged core
+planner. Its signed payload follows [in-toto Statement v1](https://github.com/in-toto/attestation/blob/main/spec/v1/statement.md);
+[DSSE](https://github.com/secure-systems-lab/dsse) authenticates the payload type
+and bytes, while Sigstore supplies identity and transparency evidence. Signing is
+deliberately external: StageFabric stores no private key and implements no custom
+cryptography. The pinned command below uses the official
+[`@sigstore/cli` 0.10.1](https://www.npmjs.com/package/@sigstore/cli).
+
+The operator generates a deployment-specific trust policy whose derived
+fabric/profile digests, audience, certificate issuer, and exact signer identity
+match the environment. Qualification and policy generation happen before the
+short-lived challenge is opened. One reproducible workflow is:
+
+```bash
+EVIDENCE=.stagefabric/evidence
+CHALLENGE_STORE=.stagefabric/challenge-store
+TRUST_POLICY="$EVIDENCE/trust-policy.json"
+AUDIENCE=stagefabric:production-control-plane
+SIGSTORE_CERTIFICATE_ISSUER=https://oauth2.sigstore.dev/auth
+SIGSTORE_IDENTITY_EMAIL=operator@example.com
+mkdir -p "$EVIDENCE" "$CHALLENGE_STORE"
+chmod 700 "$CHALLENGE_STORE"
+
+pnpm stagefabric qualify \
+  --bindings examples/runtime-bindings.ollama.yaml \
+  --profile examples/runtime-qualification.ollama.yaml \
+  > "$EVIDENCE/qualification-report.json"
+
+pnpm stagefabric trust-policy create examples/live-stagefabric.yaml \
+  --bindings examples/runtime-bindings.ollama.yaml \
+  --profile examples/runtime-qualification.ollama.yaml \
+  --certificate-issuer "$SIGSTORE_CERTIFICATE_ISSUER" \
+  --identity-email "$SIGSTORE_IDENTITY_EMAIL" \
+  --audience "$AUDIENCE" \
+  --max-snapshot-age-seconds 300 \
+  --max-snapshot-ttl-seconds 300 \
+  --clock-skew-seconds 5 \
+  > "$TRUST_POLICY"
+
+pnpm stagefabric challenge issue \
+  --output "$EVIDENCE/challenge.json" \
+  --audience "$AUDIENCE" \
+  --ttl-seconds 300
+
+pnpm stagefabric observe examples/live-stagefabric.yaml \
+  --bindings examples/runtime-bindings.ollama.yaml \
+  > "$EVIDENCE/snapshot.json"
+
+pnpm stagefabric attestation-statement examples/live-stagefabric.yaml \
+  --bindings examples/runtime-bindings.ollama.yaml \
+  --snapshot "$EVIDENCE/snapshot.json" \
+  --qualification-report "$EVIDENCE/qualification-report.json" \
+  --profile examples/runtime-qualification.ollama.yaml \
+  --trust-policy "$TRUST_POLICY" \
+  --challenge "$EVIDENCE/challenge.json" \
+  > "$EVIDENCE/statement.json"
+
+pnpm dlx @sigstore/cli@0.10.1 attest "$EVIDENCE/statement.json" \
+  --payload-type application/vnd.in-toto+json \
+  --tlog-upload \
+  --output-file "$EVIDENCE/attestation.sigstore.json"
+```
+
+Use `--identity-uri` instead of `--identity-email` when the certificate policy
+pins a URI SAN; the command requires exactly one. The external Sigstore command
+performs its own OIDC flow. The generated policy is data, not executable config,
+and StageFabric never sees or stores the signing key.
+
+Review the authenticated plan without consuming the challenge:
+
+```bash
+pnpm stagefabric plan-authenticated examples/live-stagefabric.yaml \
+  --bindings examples/runtime-bindings.ollama.yaml \
+  --snapshot "$EVIDENCE/snapshot.json" \
+  --qualification-report "$EVIDENCE/qualification-report.json" \
+  --profile examples/runtime-qualification.ollama.yaml \
+  --trust-policy "$TRUST_POLICY" \
+  --challenge "$EVIDENCE/challenge.json" \
+  --attestation-bundle "$EVIDENCE/attestation.sigstore.json"
+```
+
+Execute through the second verification and replay fence:
+
+```bash
+pnpm stagefabric run-authenticated examples/live-stagefabric.yaml \
+  --bindings examples/runtime-bindings.ollama.yaml \
+  --snapshot "$EVIDENCE/snapshot.json" \
+  --qualification-report "$EVIDENCE/qualification-report.json" \
+  --profile examples/runtime-qualification.ollama.yaml \
+  --trust-policy "$TRUST_POLICY" \
+  --challenge "$EVIDENCE/challenge.json" \
+  --attestation-bundle "$EVIDENCE/attestation.sigstore.json" \
+  --challenge-store "$CHALLENGE_STORE"
+```
+
+`--challenge-store` must be a stable, private (`0700` on POSIX) directory reused
+across runs on that host. The reference adapter can create a missing final
+directory with that mode when its parent already exists. It creates one exclusive
+marker keyed by challenge digest, so using a fresh temporary directory for every
+invocation defeats local replay memory. It is a single-host reference, not a
+distributed database; clustered deployments must provide the same consumer port
+with a shared atomic store.
+
+The qualification report is an indirect prerequisite of the authenticated
+statement: its digest and exact operation coverage must verify. It still grants
+no capability, declassification privilege, signer authority, or independent
+permission to execute. `plan-authenticated` verifies once and performs no
+provider or challenge-store I/O. `run-authenticated` verifies the same copied
+bundle twice, compares a stable authorization digest, rechecks the fabric,
+binding, and planned snapshot digests, atomically consumes the challenge, and
+only then resolves credentials or calls a provider.
 
 ## Core contract
 
@@ -170,11 +298,17 @@ namespaced operation observation restricts placement to targets where the exact
 bound model was seen. It is structurally separate from public capabilities, and
 its reserved namespace can never grant declassification authority.
 
+Authenticated cross-process runs add separate trust policy, qualification,
+challenge, and Sigstore-envelope inputs at the application boundary. These do
+not change the planner schema or add a trust flag to the plan.
+
 See [Architecture](docs/architecture.md), the [v0.1 delivery contract](docs/delivery-contract.md),
 the [v0.2 live-run contract](docs/delivery-contract-v0.2.md),
 [runtime-qualification contract](docs/delivery-contract-v0.3-runtime-qualification.md),
+[authenticated snapshot contract](docs/delivery-contract-v0.4-authenticated-snapshots.md),
 [ADR 0002](docs/adr/0002-live-runtime-bindings.md),
-[ADR 0003](docs/adr/0003-runtime-qualification-gate.md), and the
+[ADR 0003](docs/adr/0003-runtime-qualification-gate.md),
+[ADR 0004](docs/adr/0004-authenticated-capability-snapshots.md), and the
 [threat model](docs/threat-model.md).
 
 ## Safety model
