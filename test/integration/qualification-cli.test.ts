@@ -1,12 +1,16 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { stringify } from 'yaml';
 
+import { loadRuntimeBindingsFile } from '../../src/adapters/live-run-bundle.js';
+import { loadRuntimeQualificationProfile } from '../../src/adapters/runtime-qualification-profile.js';
+import { qualifyRuntimeOperations } from '../../src/application/runtime-qualification.js';
 import { runCli } from '../../src/entrypoints/cli.js';
+import type { RuntimeOperationQualifier } from '../../src/ports/runtime-operation-qualifier.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -19,6 +23,53 @@ afterEach(async () => {
 });
 
 describe('qualification CLI', () => {
+  it('keeps the checked-in Ollama bindings and profile selection compatible offline', async () => {
+    const [bindings, profile] = await Promise.all([
+      loadRuntimeBindingsFile(resolve('examples/runtime-bindings.ollama.yaml')),
+      loadRuntimeQualificationProfile(
+        resolve('examples/runtime-qualification.ollama.yaml'),
+      ),
+    ]);
+    const qualify = vi.fn<RuntimeOperationQualifier['qualify']>(
+      async (request) =>
+        request.operations.map((operation) => ({
+          operation: operation.operation,
+          operationKind: operation.kind,
+          status: 'qualified',
+          reasonCode: 'qualified',
+        })),
+    );
+
+    const report = await qualifyRuntimeOperations(
+      { bindings, profile },
+      {
+        qualifiers: [
+          {
+            kind: 'openai-compatible',
+            version: 'fixture-contract-v1',
+            qualify,
+          },
+        ],
+      },
+    );
+
+    expect(qualify).toHaveBeenCalledOnce();
+    expect(qualify.mock.calls[0]?.[0]).toMatchObject({
+      target: { targetId: 'ollama-local' },
+      operations: [
+        { operation: 'embed', kind: 'embedding' },
+        { operation: 'generate', kind: 'generate-text' },
+      ],
+    });
+    expect(report).toMatchObject({
+      qualified: true,
+      results: [
+        { targetId: 'ollama-local', operation: 'embed' },
+        { targetId: 'ollama-local', operation: 'generate' },
+      ],
+    });
+  });
+
   it('emits a content-free report and fails the gate on a rejected operation', async () => {
     let rejectOperation = false;
     const paths: string[] = [];

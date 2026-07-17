@@ -7,7 +7,7 @@ limits:
   maxOperations: 2
   maxGenerationOutputTokensPerCall: 256
 targets:
-  - targetId: local-ollama
+  - targetId: ollama-local
     operations:
       - embed
       - generate

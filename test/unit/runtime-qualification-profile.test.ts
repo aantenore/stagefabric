@@ -22,7 +22,7 @@ function profile() {
       maxOperations: 2,
       maxGenerationOutputTokensPerCall: 256,
     },
-    targets: [{ targetId: 'local-ollama', operations: ['embed', 'generate'] }],
+    targets: [{ targetId: 'ollama-local', operations: ['embed', 'generate'] }],
   };
 }
 
