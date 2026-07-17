@@ -129,5 +129,10 @@ describe('CLI', () => {
     expect(output).toContain('"fallbackObserved": true');
     expect(output).not.toContain('ada@example.com');
     expect(output).not.toContain('+39 333 123 4567');
+
+    output = '';
+    const versionCode = await runCli(['node', 'stagefabric', '--version'], io);
+    expect(versionCode).toBe(0);
+    expect(output).toBe('0.4.0-alpha.1\n');
   });
 });

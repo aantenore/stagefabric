@@ -541,6 +541,8 @@ describe('capability snapshot attestation contracts', () => {
       bindingDigest: inputs.bindings.digest,
       qualificationReportDigest: inputs.qualificationReport.digest,
       configuredSignerIdentity: inputs.trustPolicy.signerIdentity,
+      challengeIssuedAt: inputs.challenge.issuedAt,
+      challengeExpiresAt: inputs.challenge.expiresAt,
       verifiedAt: '2026-07-17T10:01:00.000Z',
       snapshotExpiresAt: inputs.snapshot.expiresAt,
     });

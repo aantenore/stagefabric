@@ -16,11 +16,11 @@ function profile() {
     apiVersion: 'stagefabric.dev/v1alpha1',
     kind: 'RuntimeQualificationProfile',
     limits: {
-      totalTimeoutMs: 30_000,
+      totalTimeoutMs: 60_000,
       maxConcurrency: 1,
       maxTargets: 1,
       maxOperations: 2,
-      maxGenerationOutputTokensPerCall: 256,
+      maxGenerationOutputTokensPerCall: 512,
     },
     targets: [{ targetId: 'ollama-local', operations: ['embed', 'generate'] }],
   };

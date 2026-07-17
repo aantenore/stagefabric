@@ -218,6 +218,8 @@ export const verifiedCapabilitySnapshotEvidenceSchema = z
     targetScopeDigest: sha256DigestSchema,
     challengeDigest: sha256DigestSchema,
     configuredSignerIdentity: capabilitySnapshotSignerIdentitySchema,
+    challengeIssuedAt: timestampSchema,
+    challengeExpiresAt: timestampSchema,
     verifiedAt: timestampSchema,
     snapshotExpiresAt: timestampSchema,
   })
@@ -841,6 +843,8 @@ export function verifyCapabilitySnapshotAttestationSemantics(
     targetScopeDigest: digests.targetScopeDigest,
     challengeDigest: digests.challengeDigest,
     configuredSignerIdentity: parsed.trustPolicy.signerIdentity,
+    challengeIssuedAt: challenge.issuedAt,
+    challengeExpiresAt: challenge.expiresAt,
     verifiedAt: evaluatedAt,
     snapshotExpiresAt: parsed.snapshot.expiresAt,
   });

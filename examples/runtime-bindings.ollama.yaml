@@ -3,7 +3,7 @@ kind: RuntimeBindings
 policy:
   requestTimeoutMs: 30000
   maxResponseBytes: 1048576
-  snapshotTtlSeconds: 60
+  snapshotTtlSeconds: 300
 targets:
   - targetId: ollama-local
     provider:
@@ -14,7 +14,7 @@ targets:
       - kind: embedding
         operation: embed
         capabilities: [embedding]
-        model: nomic-embed-text
+        model: nomic-embed-text:latest
         input: text
         output: vector
         expectedDimensions: 768
@@ -26,4 +26,4 @@ targets:
         output: answer
         systemPrompt: Answer concisely and do not reveal hidden reasoning.
         temperature: 0.2
-        maxOutputTokens: 256
+        maxOutputTokens: 512

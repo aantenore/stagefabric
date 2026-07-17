@@ -4,6 +4,7 @@
  * Node-specific configuration, HTTP servers, provider adapters, and demos are
  * deliberately excluded from this entrypoint.
  */
+export * from './application/authenticate-capability-snapshot.js';
 export * from './application/executor.js';
 export * from './application/planner.js';
 export * from './application/runtime-qualification.js';

@@ -83,6 +83,18 @@ export interface LiveRunResult {
   readonly outputs: Readonly<Record<string, unknown>>;
 }
 
+export interface PreparedLiveRunRequest {
+  readonly fabric: Fabric;
+  readonly graph: StageGraph;
+  readonly bindings: RuntimeBindings;
+  readonly inputs: Readonly<Record<string, unknown>>;
+}
+
+export interface PreparedLiveExecutionResult {
+  readonly execution: ExecutionResult;
+  readonly outputs: Readonly<Record<string, unknown>>;
+}
+
 function validateBindingTarget(
   target: RuntimeTargetBinding,
   fabricTarget: Fabric['targets'][number] | undefined,
@@ -183,7 +195,7 @@ function assertExactInputs(
   }
 }
 
-function normalizedNow(now: () => Date): string {
+export function liveRunnerTimestamp(now: () => Date): string {
   try {
     const value = now();
     if (!Number.isFinite(value.getTime())) throw new Error('invalid');
@@ -210,11 +222,9 @@ function leafOutputs(
   return outputs;
 }
 
-/** Executes one same-process live probe → plan → binding-verified run. */
-export async function runLiveStageGraph(
+export function prepareLiveRunRequest(
   request: LiveRunRequest,
-  options: LiveRunnerOptions = {},
-): Promise<LiveRunResult> {
+): PreparedLiveRunRequest {
   const fabric = fabricSchema.parse(request.fabric);
   const graph = stageGraphSchema.parse(request.graph);
   const bindings = runtimeBindingsSchema.parse(request.bindings);
@@ -231,30 +241,42 @@ export async function runLiveStageGraph(
   assertNoLiveDeclassification(graph);
   assertOperationContracts(graph, bindings);
   assertExactInputs(graph, request.inputs);
+  return { fabric, graph, bindings, inputs: request.inputs };
+}
 
+export async function observePreparedLiveRuntime(
+  request: PreparedLiveRunRequest,
+  options: Pick<LiveRunnerOptions, 'environment' | 'fetch' | 'now'> = {},
+): Promise<CapabilitySnapshot> {
   const environment = options.environment ?? process.env;
-  const fetchImplementation = options.fetch ?? globalThis.fetch;
-  const observedAt = normalizedNow(options.now ?? (() => new Date()));
-  const snapshot = await probeRuntimeBindings({
-    bindings,
-    observedAt,
-    fetch: fetchImplementation,
+  return probeRuntimeBindings({
+    bindings: request.bindings,
+    observedAt: liveRunnerTimestamp(options.now ?? (() => new Date())),
+    fetch: options.fetch ?? globalThis.fetch,
     resolveBearerToken: ({ apiKeyEnv }) => environment[apiKeyEnv],
   });
-  const evaluatedAt = normalizedNow(options.now ?? (() => new Date()));
-  const plan = planStageGraph({
-    fabric,
-    graph,
-    snapshot,
-    evaluatedAt,
-  });
+}
+
+export async function observeLiveRuntime(
+  request: LiveRunRequest,
+  options: Pick<LiveRunnerOptions, 'environment' | 'fetch' | 'now'> = {},
+): Promise<CapabilitySnapshot> {
+  return observePreparedLiveRuntime(prepareLiveRunRequest(request), options);
+}
+
+/** Starts credential/provider work. Authenticated callers must fence first. */
+export async function executePreparedLivePlan(
+  request: PreparedLiveRunRequest,
+  plan: ExecutionPlan,
+  options: Pick<LiveRunnerOptions, 'environment' | 'fetch' | 'guards'> = {},
+): Promise<PreparedLiveExecutionResult> {
   const adapter = new OpenAICompatibleStageAdapter({
-    bindings,
-    environment,
-    fetch: fetchImplementation,
+    bindings: request.bindings,
+    environment: options.environment ?? process.env,
+    fetch: options.fetch ?? globalThis.fetch,
   });
   const adapters = new StageAdapterRegistry([adapter], {
-    bindingDigest: bindings.digest,
+    bindingDigest: request.bindings.digest,
   });
   const execution = await executePlan({
     plan,
@@ -262,10 +284,31 @@ export async function runLiveStageGraph(
     adapters,
     ...(options.guards === undefined ? {} : { guards: options.guards }),
   });
-  const outputs = leafOutputs(plan, execution);
+  return { execution, outputs: leafOutputs(plan, execution) };
+}
+
+/** Executes one same-process live probe → plan → binding-verified run. */
+export async function runLiveStageGraph(
+  request: LiveRunRequest,
+  options: LiveRunnerOptions = {},
+): Promise<LiveRunResult> {
+  const prepared = prepareLiveRunRequest(request);
+  const snapshot = await observePreparedLiveRuntime(prepared, options);
+  const evaluatedAt = liveRunnerTimestamp(options.now ?? (() => new Date()));
+  const plan = planStageGraph({
+    fabric: prepared.fabric,
+    graph: prepared.graph,
+    snapshot,
+    evaluatedAt,
+  });
+  const { execution, outputs } = await executePreparedLivePlan(
+    prepared,
+    plan,
+    options,
+  );
 
   return {
-    bindingDigest: bindings.digest,
+    bindingDigest: prepared.bindings.digest,
     snapshot,
     plan,
     execution: {

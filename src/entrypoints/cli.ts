@@ -16,6 +16,10 @@ import { runDemo } from '../composition/demo.js';
 import { runLiveStageGraph } from '../composition/live-runner.js';
 import { qualifyConfiguredRuntime } from '../composition/runtime-qualification.js';
 import { startStageFabricServer } from './api.js';
+import {
+  registerAuthenticatedSnapshotCommands,
+  type AuthenticatedCliDependencies,
+} from './authenticated-cli.js';
 import { safeErrorBody } from './safe-error.js';
 
 export interface CliIo {
@@ -42,11 +46,14 @@ function parsePort(value: string): number {
   return port;
 }
 
-export function createStageFabricCli(io: CliIo = defaultIo): Command {
+export function createStageFabricCli(
+  io: CliIo = defaultIo,
+  dependencies: AuthenticatedCliDependencies = {},
+): Command {
   const program = new Command()
     .name('stagefabric')
     .description('Plan and execute privacy-safe hybrid AI stage graphs')
-    .version('0.3.0-alpha.1')
+    .version('0.4.0-alpha.1')
     .showSuggestionAfterError()
     .configureOutput({
       writeOut: io.writeOut,
@@ -163,14 +170,16 @@ export function createStageFabricCli(io: CliIo = defaultIo): Command {
       });
     });
 
+  registerAuthenticatedSnapshotCommands(program, io, dependencies);
   return program;
 }
 
 export async function runCli(
   argv: readonly string[] = process.argv,
   io: CliIo = defaultIo,
+  dependencies: AuthenticatedCliDependencies = {},
 ): Promise<number> {
-  const program = createStageFabricCli(io).exitOverride();
+  const program = createStageFabricCli(io, dependencies).exitOverride();
   try {
     await program.parseAsync([...argv]);
     return 0;

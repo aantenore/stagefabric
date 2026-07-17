@@ -1,6 +1,6 @@
 {
   "name": "stagefabric",
-  "version": "0.3.0-alpha.1",
+  "version": "0.4.0-alpha.1",
   "description": "Compile and execute privacy-safe AI stage graphs across browser, local, edge, and cloud targets.",
   "type": "module",
   "license": "Apache-2.0",
@@ -22,6 +22,8 @@
   ],
   "files": [
     "dist",
+    "docs",
+    "examples",
     "README.md",
     "LICENSE"
   ],
@@ -43,7 +45,7 @@
     "stagefabric": "./dist/entrypoints/cli.js"
   },
   "engines": {
-    "node": ">=24"
+    "node": "^24.15.0 || >=26.0.0"
   },
   "packageManager": "pnpm@11.8.0",
   "scripts": {
@@ -67,6 +69,7 @@
     "ai": "7.0.22",
     "commander": "15.0.0",
     "hono": "4.12.30",
+    "sigstore": "5.0.0",
     "yaml": "2.9.0",
     "zod": "4.4.3"
   },
