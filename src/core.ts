@@ -8,6 +8,7 @@ export * from './application/executor.js';
 export * from './application/planner.js';
 export * from './application/runtime-qualification.js';
 export * from './domain/canonical.js';
+export * from './domain/capability-snapshot-attestation.js';
 export * from './domain/runtime-bindings.js';
 export * from './domain/runtime-qualification.js';
 export * from './domain/schema.js';
