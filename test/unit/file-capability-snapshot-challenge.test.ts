@@ -42,7 +42,9 @@ describe('file capability snapshot challenge', () => {
       issuedAt: '2026-07-17T05:00:00.000Z',
       expiresAt: '2026-07-17T05:01:30.000Z',
     });
-    expect((await stat(path)).mode & 0o077).toBe(0);
+    if (process.platform !== 'win32') {
+      expect((await stat(path)).mode & 0o077).toBe(0);
+    }
 
     await expect(
       issueCapabilitySnapshotChallengeFile({

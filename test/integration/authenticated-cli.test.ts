@@ -395,7 +395,9 @@ describe('authenticated snapshot CLI commands', () => {
     });
     expect(issued.output).not.toContain(rawChallenge);
     expect(await readFile(issuedPath, 'utf8')).toContain(rawChallenge);
-    expect((await stat(issuedPath)).mode & 0o077).toBe(0);
+    if (process.platform !== 'win32') {
+      expect((await stat(issuedPath)).mode & 0o077).toBe(0);
+    }
 
     const fetch = vi.fn<typeof globalThis.fetch>(async () =>
       Response.json({ data: [{ id: 'summary-live' }] }),
