@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { realpathSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { Command, CommanderError, InvalidArgumentError } from 'commander';
@@ -16,6 +16,7 @@ import { runDemo } from '../composition/demo.js';
 import { runLiveStageGraph } from '../composition/live-runner.js';
 import { qualifyConfiguredRuntime } from '../composition/runtime-qualification.js';
 import { startStageFabricServer } from './api.js';
+import { startBrowserDemoServer } from './browser-demo.js';
 import {
   registerAuthenticatedSnapshotCommands,
   type AuthenticatedCliDependencies,
@@ -31,6 +32,30 @@ const defaultIo: CliIo = {
   writeOut: (value) => process.stdout.write(value),
   writeErr: (value) => process.stderr.write(value),
 };
+
+function readPackageVersion(): string {
+  let metadata: unknown;
+  try {
+    metadata = JSON.parse(
+      readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+    );
+  } catch {
+    throw new Error('StageFabric package metadata is unreadable');
+  }
+
+  if (
+    typeof metadata !== 'object' ||
+    metadata === null ||
+    !('version' in metadata) ||
+    typeof metadata.version !== 'string' ||
+    metadata.version.trim() === ''
+  ) {
+    throw new Error('StageFabric package metadata has no valid version');
+  }
+  return metadata.version;
+}
+
+export const STAGEFABRIC_VERSION = readPackageVersion();
 
 function writeJson(write: (value: string) => void, value: unknown): void {
   write(`${JSON.stringify(value, null, 2)}\n`);
@@ -53,7 +78,7 @@ export function createStageFabricCli(
   const program = new Command()
     .name('stagefabric')
     .description('Plan and execute privacy-safe hybrid AI stage graphs')
-    .version('0.4.0-alpha.1')
+    .version(STAGEFABRIC_VERSION)
     .showSuggestionAfterError()
     .configureOutput({
       writeOut: io.writeOut,
@@ -151,6 +176,24 @@ export function createStageFabricCli(
         io.writeOut,
         await runDemo({ leakyRedactor: commandOptions.leaky === true }),
       );
+    });
+
+  program
+    .command('browser-demo')
+    .description('Serve the local Browser Privacy Bridge reference app')
+    .option('--host <host>', 'bind host', '127.0.0.1')
+    .option('--port <port>', 'bind port', parsePort, 4173)
+    .action((commandOptions: { host: string; port: number }) => {
+      startBrowserDemoServer({
+        host: commandOptions.host,
+        port: commandOptions.port,
+      });
+      writeJson(io.writeOut, {
+        listening: true,
+        app: 'browser-privacy-bridge',
+        host: commandOptions.host,
+        port: commandOptions.port,
+      });
     });
 
   program

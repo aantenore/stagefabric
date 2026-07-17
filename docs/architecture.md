@@ -109,9 +109,9 @@ shared atomic store.
   depends only on ports. Runtime qualification adds a bounded deterministic
   orchestrator. Snapshot authentication verifies signed-statement semantics and
   produces a stable, content-free authorization digest.
-- `ports`: stage-adapter resolution, input-policy guard, and provider-keyed
-  runtime-operation qualifier interfaces, plus replaceable attestation-verifier
-  and atomic challenge-consumer boundaries.
+- `ports`: stage-adapter resolution, input-policy guard, post-output verifier,
+  and provider-keyed runtime-operation qualifier interfaces, plus replaceable
+  attestation-verifier and atomic challenge-consumer boundaries.
 - `adapters`: configuration codecs, bounded network boundary, capability probe,
   in-process targets, OpenAI-compatible provider adapter, opt-in qualifier,
   bounded evidence-file loaders, official Sigstore verification, and a
@@ -150,12 +150,19 @@ optimization is deferred until it can preserve explainability and reproducibilit
 ## Data lineage and egress
 
 Every value carries a classification. An output classification is at least the
-maximum classification of its inputs. A lower classification requires an explicit
-declassification declaration and a target with the named authority capability.
+maximum classification of its inputs. A lower classification requires an
+explicit declassification declaration, a target with the named authority
+capability, and an execution-time `StageOutputVerifier` that returns exactly
+`true` for the disposable output snapshot. Missing, failed, or rejected
+verification fails closed.
 
 For each dependency whose selected target or zone changes, the plan includes an
 egress record with source, destination, classification, and policy reason codes.
 The executor consumes a previously validated plan; it does not silently re-plan.
+Caller inputs, stage inputs, adapter outputs, guard requests, and verifier
+requests are bounded plain-data snapshots. Accessors, symbols, exotic
+prototypes, cycles, and snapshot-limit overflow are rejected so an extension
+cannot mutate another attempt or the caller's values.
 
 For a binding-bound live snapshot, model discovery records namespaced evidence
 for the exact configured operation. The planner checks that evidence as a

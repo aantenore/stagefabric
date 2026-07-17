@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client", "node"]
+  },
+  "include": [
+    "examples/browser-privacy-bridge/src/**/*.ts",
+    "examples/browser-privacy-bridge/vite.config.ts",
+    "src/browser/**/*.ts"
+  ]
+}

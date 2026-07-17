@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -9,6 +10,10 @@ import {
 } from '../../src/composition/demo.js';
 import { createStageFabricApp } from '../../src/entrypoints/api.js';
 import { isDirectCliInvocation, runCli } from '../../src/entrypoints/cli.js';
+
+const packageMetadata = JSON.parse(
+  readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+) as { version: string };
 
 describe('HTTP API', () => {
   const app = createStageFabricApp({
@@ -75,9 +80,9 @@ describe('HTTP API', () => {
     const body = await rejected.text();
     expect(JSON.parse(body)).toMatchObject({
       error: {
-        code: 'input_policy_rejected',
-        stageId: 'embed',
-        reasonCode: 'sensitive_data_detected',
+        code: 'output_policy_rejected',
+        stageId: 'redact',
+        reasonCode: 'declassification_verification_failed',
       },
     });
     expect(body).not.toContain('ada@example.com');
@@ -133,6 +138,6 @@ describe('CLI', () => {
     output = '';
     const versionCode = await runCli(['node', 'stagefabric', '--version'], io);
     expect(versionCode).toBe(0);
-    expect(output).toBe('0.4.0-alpha.1\n');
+    expect(output).toBe(`${packageMetadata.version}\n`);
   });
 });

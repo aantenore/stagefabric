@@ -1,6 +1,6 @@
 {
   "name": "stagefabric",
-  "version": "0.4.0-alpha.1",
+  "version": "0.5.0-alpha.1",
   "description": "Compile and execute privacy-safe AI stage graphs across browser, local, edge, and cloud targets.",
   "type": "module",
   "license": "Apache-2.0",
@@ -24,6 +24,7 @@
     "dist",
     "docs",
     "examples",
+    "CHANGELOG.md",
     "README.md",
     "LICENSE"
   ],
@@ -39,6 +40,14 @@
     "./node": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser/index.d.ts",
+      "import": "./dist/browser/index.js"
+    },
+    "./browser/transformers": {
+      "types": "./dist/browser/drivers/transformers/index.d.ts",
+      "import": "./dist/browser/drivers/transformers/index.js"
     }
   },
   "bin": {
@@ -49,18 +58,28 @@
   },
   "packageManager": "pnpm@11.8.0",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test",
+    "browser:dev": "vite --config examples/browser-privacy-bridge/vite.config.ts --host 127.0.0.1 --port 4173",
+    "browser:preview": "vite preview --config examples/browser-privacy-bridge/vite.config.ts --host 127.0.0.1 --port 4173",
+    "build": "pnpm run clean:dist && pnpm run build:library && pnpm run build:browser-demo",
+    "build:browser-demo": "vite build --config examples/browser-privacy-bridge/vite.config.ts",
+    "build:library": "tsc -p tsconfig.build.json",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run test:package",
+    "clean:dist": "node scripts/clean-dist.mjs",
     "dev": "tsx src/entrypoints/cli.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "oxlint --deny-warnings src test",
+    "lint": "oxlint --deny-warnings src test scripts examples/browser-privacy-bridge/src examples/browser-privacy-bridge/vite.config.ts e2e playwright.config.ts vitest.config.ts",
     "prepack": "pnpm run build",
     "stagefabric": "tsx src/entrypoints/cli.ts",
     "start": "node dist/entrypoints/cli.js",
     "test": "vitest run",
+    "test:browser": "pnpm run build && playwright test",
+    "test:coverage": "vitest run --coverage",
+    "test:package": "node scripts/package-smoke.mjs",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "pnpm run typecheck:library && pnpm run typecheck:browser",
+    "typecheck:browser": "tsc --noEmit -p tsconfig.browser-demo.json",
+    "typecheck:library": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "3.0.7",
@@ -74,11 +93,14 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "1.61.1",
     "@types/node": "26.1.1",
+    "@vitest/coverage-v8": "4.1.10",
     "oxlint": "1.74.0",
     "prettier": "3.9.5",
     "tsx": "4.23.1",
     "typescript": "7.0.2",
+    "vite": "8.1.5",
     "vitest": "4.1.10"
   }
 }

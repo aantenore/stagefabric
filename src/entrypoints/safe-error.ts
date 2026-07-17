@@ -9,7 +9,7 @@ import { LiveRunBundleError } from '../adapters/live-run-bundle.js';
 import { RuntimeQualificationProfileError } from '../adapters/runtime-qualification-profile.js';
 import { CapabilityAttestationVerificationError } from '../adapters/sigstore-capability-snapshot-attestation-verifier.js';
 import { AuthenticateCapabilitySnapshotError } from '../application/authenticate-capability-snapshot.js';
-import { ExecutionError } from '../application/executor.js';
+import { isExecutionError } from '../application/executor.js';
 import { PlannerError } from '../application/planner.js';
 import { RuntimeQualificationError } from '../application/runtime-qualification.js';
 import { AuthenticatedLiveRunnerError } from '../composition/authenticated-live-runner.js';
@@ -34,7 +34,7 @@ export function safeErrorBody(error: unknown): SafeErrorBody {
   if (error instanceof PlannerError) {
     return { error: { code: error.code, details: error.details } };
   }
-  if (error instanceof ExecutionError) {
+  if (isExecutionError(error)) {
     return {
       error: {
         code: error.code,

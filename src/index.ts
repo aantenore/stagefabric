@@ -7,4 +7,5 @@ export * from './composition/index.js';
 export * from './domain/index.js';
 export * from './entrypoints/api.js';
 export * from './entrypoints/authenticated-cli.js';
+export * from './entrypoints/browser-demo.js';
 export * from './ports/index.js';

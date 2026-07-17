@@ -25,7 +25,8 @@ may run and prove what crossed every trust boundary.
 StageFabric makes that decision deterministic and testable:
 
 - typed DAG validation and stable topological planning;
-- classification lineage with explicit, capability-gated declassification;
+- classification lineage with explicit, capability-gated and
+  post-output-verified declassification;
 - configurable zones, trust levels, residency, capabilities, latency, and cost;
 - ordered per-stage fallbacks and reason-coded candidate rejection;
 - an egress ledger and content-free execution traces;
@@ -33,14 +34,16 @@ StageFabric makes that decision deterministic and testable:
 
 ## Status
 
-StageFabric is an experimental `v0.4.0-alpha.1` reference implementation. Its
+StageFabric is an experimental `v0.5.0-alpha.1` reference implementation. Its
 planner is deliberately deterministic and greedy, not a globally optimal
 scheduler. The original in-process demo remains reproducible without credentials
 or model downloads. The opt-in Live Fabric Runner now probes and executes real
 OpenAI-compatible runtimes while keeping endpoints, models, and credentials out
 of the stage graph. A separate authenticated path can transport a capability
 snapshot across processes, verify its signer and bounded evidence, compile a
-reviewable plan, and consume a single-use challenge before execution.
+reviewable plan, and consume a single-use challenge before execution. The
+Browser Privacy Bridge adds a provider-neutral, fail-closed browser path that
+redacts in a Dedicated Worker and authorizes only the exact verified output.
 
 ## Quick start
 
@@ -76,6 +79,92 @@ pnpm stagefabric serve --host 127.0.0.1 --port 8787
 The HTTP service exposes `GET /healthz`, `POST /v1/plans`, and
 `POST /v1/demo/runs`. It binds to loopback by default. Live execution is CLI and
 library only; this release deliberately adds no remotely invokable run endpoint.
+
+## Browser Privacy Bridge
+
+`v0.5.0-alpha.1` adds a browser-native privacy boundary for applications that
+need to sanitize data before an egress-capable stage can use it:
+
+```text
+sealed bindings -> coarse capability probe -> Dedicated Worker
+                -> deterministic redaction + optional local classifier
+                -> complete post-output rescan -> privacy receipt
+                -> exact-output egress permit + content-free ledger
+```
+
+Launch the reference app during development, or serve the packaged build:
+
+```bash
+pnpm browser:dev
+
+# After installing or building the package:
+stagefabric browser-demo
+```
+
+Both commands use the loopback reference app at `http://127.0.0.1:4173`. The
+demo performs no cloud egress: it runs the bounded rule cascade in a module
+worker and visualizes the plan, receipt, permit, and ledger locally.
+
+Browser applications import the provider-neutral contracts from the dedicated
+subpath:
+
+```ts
+import {
+  BrowserPrivacyBridge,
+  BrowserRuntimeDriverRegistry,
+  sealBrowserRuntimeBindings,
+} from 'stagefabric/browser';
+```
+
+`BrowserRuntimeDriver` keeps model SDKs and worker construction outside the
+core. Runtime IDs, module URLs, capability requirements, probe/readiness/run/
+cleanup timeouts, byte ceilings, policy digests, and redaction-source IDs come
+from sealed operator bindings rather than application payloads. Input and output
+checks count UTF-8 incrementally only up to those ceilings. Runtime configuration
+is copied through a descriptor-safe JSON snapshot with structural and cumulative
+key/value string budgets before validation. The bridge recursively freezes the
+detached parsed binding before any selected target reaches a driver. The optional
+`stagefabric/browser/transformers` adapter follows the same rule: construct
+`TransformersSensitiveSpanClassifier` with a strict operator configuration, a
+lowercase 40-character model commit SHA, and an injected
+Transformers.js-compatible `pipeline` factory. StageFabric imports no SDK,
+selects no model, and configures no model endpoint on the adapter's behalf.
+
+The receipt retains the exact output digest plus plan, runtime, operation,
+decision, binding, redaction-policy, and egress-policy lineage. It records the
+complete rule/classifier source set evaluated during the rescan separately from
+the sources that actually produced replacements. Applied metadata is accepted
+only when the branded cascade result and its complete rescan carry the same exact
+source set. The receipt never retains the raw input, raw output, matched text, or
+a hash of the original input, and the egress gate checks it against the exact
+output bytes, decision, and bound source set.
+
+An egress permit carries an in-realm gate brand: cloning its fields produces data,
+not another proof object. An authorized ledger accepts only that branded permit,
+a capability snapshot whose requirements match the plan, and an eligibility
+value consistent with the capability outcomes.
+
+Worker request IDs are never reused within a session, and each invocation
+result must echo the exact runtime ID and operation. Malformed or non-settling
+capability probes, Worker `error`/`messageerror` events, protocol failures, and
+asynchronous cleanup rejection/timeout are normalized and deny permit issuance.
+The demo driver also accepts only the module URL corresponding to its statically
+registered Worker factory. Worker ports must expose termination; termination
+failure is normalized. The reference Worker uses CSP-compatible static module
+initialization and does not defer message handling behind a dynamic-import
+bootstrap.
+
+A Dedicated Worker makes regex work time-bounded and killable from the host; it
+is not a security boundary, hardware isolation, or runtime/model attestation.
+The operator still owns worker code, rules, and deployment policy. Optional
+external model downloads require explicit operator configuration, an appropriate
+CSP/network allowlist, and user or organizational consent. See
+[ADR 0005](docs/adr/0005-browser-privacy-bridge.md) and the
+[v0.5 delivery contract](docs/delivery-contract-v0.5-browser-privacy.md).
+
+CI exercises the reference app in Chromium, Firefox, and WebKit. The Node matrix
+also includes Node.js 26 on Linux alongside the Node.js 24 operating-system
+matrix.
 
 ## Live Fabric Runner
 
@@ -306,9 +395,11 @@ See [Architecture](docs/architecture.md), the [v0.1 delivery contract](docs/deli
 the [v0.2 live-run contract](docs/delivery-contract-v0.2.md),
 [runtime-qualification contract](docs/delivery-contract-v0.3-runtime-qualification.md),
 [authenticated snapshot contract](docs/delivery-contract-v0.4-authenticated-snapshots.md),
+[browser privacy contract](docs/delivery-contract-v0.5-browser-privacy.md),
 [ADR 0002](docs/adr/0002-live-runtime-bindings.md),
 [ADR 0003](docs/adr/0003-runtime-qualification-gate.md),
-[ADR 0004](docs/adr/0004-authenticated-capability-snapshots.md), and the
+[ADR 0004](docs/adr/0004-authenticated-capability-snapshots.md),
+[ADR 0005](docs/adr/0005-browser-privacy-bridge.md), and the
 [threat model](docs/threat-model.md).
 
 ## Safety model
@@ -326,10 +417,18 @@ and normalizes upstream failures to content-free reason codes. Probe and inferen
 share an exact-origin/path, redirect-free, deadline- and response-size-bounded
 fetch boundary.
 
+Structured adapter, input-policy, and output-verifier errors accept only fixed
+reason-code sets and are frozen when created; forged or unexpected failures are
+normalized. `SensitiveDataGuard` scans string property keys as well as values,
+counts UTF-8 only to its configured ceiling, and rejects accessors, symbols,
+cycles, exotic prototypes, or exhausted inspection budgets.
+
 The package exposes `stagefabric/core` for platform-neutral domain (including
 runtime-binding and qualification contracts), planner, executor, and port APIs.
 Node YAML/file configuration, HTTP, CLI, demos, and live provider adapters remain
-behind the default or `stagefabric/node` entrypoint.
+behind the default or `stagefabric/node` entrypoint. Browser-only contracts are
+available from `stagefabric/browser`; the optional injected classifier adapter is
+available from `stagefabric/browser/transformers`.
 
 ## Contributing
 

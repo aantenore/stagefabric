@@ -33,6 +33,19 @@ export type StageAdapterFailureCode =
   | 'partial_output'
   | 'adapter_failure';
 
+export const STAGE_ADAPTER_FAILURE_CODES = [
+  'upstream_rejected',
+  'upstream_unavailable',
+  'timeout',
+  'partial_output',
+  'adapter_failure',
+] as const satisfies readonly StageAdapterFailureCode[];
+
+const STAGE_ADAPTER_FAILURE_CODE_SET = new Set<string>(
+  STAGE_ADAPTER_FAILURE_CODES,
+);
+const stageAdapterErrors = new WeakSet<object>();
+
 export interface StageAdapterErrorOptions {
   readonly code: StageAdapterFailureCode;
   readonly statusCode?: number;
@@ -49,10 +62,40 @@ export class StageAdapterError extends Error {
   readonly outputEmitted: boolean;
 
   constructor(options: StageAdapterErrorOptions) {
-    super(options.code);
+    let code: StageAdapterFailureCode;
+    let statusCode: number | undefined;
+    let outputEmitted: boolean | undefined;
+    try {
+      code = options.code;
+      statusCode = options.statusCode;
+      outputEmitted = options.outputEmitted;
+    } catch {
+      throw new TypeError('stage_adapter_error_invalid');
+    }
+    if (
+      !STAGE_ADAPTER_FAILURE_CODE_SET.has(code) ||
+      (statusCode !== undefined &&
+        (!Number.isInteger(statusCode) ||
+          statusCode < 100 ||
+          statusCode > 599)) ||
+      (outputEmitted !== undefined && typeof outputEmitted !== 'boolean')
+    ) {
+      throw new TypeError('stage_adapter_error_invalid');
+    }
+    super(code);
     this.name = 'StageAdapterError';
-    this.code = options.code;
-    this.statusCode = options.statusCode;
-    this.outputEmitted = options.outputEmitted ?? false;
+    this.code = code;
+    this.statusCode = statusCode;
+    this.outputEmitted = outputEmitted ?? false;
+    stageAdapterErrors.add(this);
+    Object.freeze(this);
   }
+}
+
+export function isStageAdapterError(
+  value: unknown,
+): value is StageAdapterError {
+  return (
+    typeof value === 'object' && value !== null && stageAdapterErrors.has(value)
+  );
 }

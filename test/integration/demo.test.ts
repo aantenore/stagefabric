@@ -33,6 +33,7 @@ describe('StageFabric demo', () => {
         inputs: runtime.inputs,
         adapters: runtime.adapters,
         guards: runtime.guards,
+        outputVerifier: runtime.outputVerifier,
       });
     } catch (error) {
       caught = error;
@@ -40,9 +41,9 @@ describe('StageFabric demo', () => {
 
     expect(caught).toBeInstanceOf(ExecutionError);
     expect(caught).toMatchObject({
-      code: 'input_policy_rejected',
-      stageId: 'embed',
-      reasonCode: 'sensitive_data_detected',
+      code: 'output_policy_rejected',
+      stageId: 'redact',
+      reasonCode: 'declassification_verification_failed',
     });
     expect(
       runtime.audit.invocations.map((invocation) => invocation.stageId),

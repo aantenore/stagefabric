@@ -14,6 +14,7 @@ import { fabricSchema, stageGraphSchema } from '../domain/schema.js';
 import { sealCapabilitySnapshot } from '../domain/snapshot.js';
 import { StageAdapterError } from '../ports/stage-adapter.js';
 import type { StageInputGuard } from '../ports/stage-input-guard.js';
+import type { StageOutputVerifier } from '../ports/stage-output-verifier.js';
 
 export const DEMO_EVALUATED_AT = '2026-07-15T12:00:00.000Z';
 export const DEMO_INPUT =
@@ -43,6 +44,7 @@ export interface DemoRuntime {
   readonly guards: readonly StageInputGuard[];
   readonly audit: DemoAudit;
   readonly inputs: Readonly<Record<string, unknown>>;
+  readonly outputVerifier: StageOutputVerifier;
 }
 
 export interface DemoRunResult {
@@ -314,6 +316,20 @@ export function createDemoRuntime(
     patterns: DEMO_PATTERNS,
     inspectPlacement: ({ placement }) => placement.zone !== 'browser',
   });
+  const outputVerifier: StageOutputVerifier = {
+    verify: ({ stageId, output, value }) => {
+      if (stageId === 'redact' && output.name === 'safe') {
+        return typeof value === 'string' && !hasSensitiveData(value);
+      }
+      if (stageId === 'retrieve' && output.name === 'context') {
+        return (
+          typeof value === 'string' &&
+          /^document:[a-z0-9][a-z0-9-]{0,127}$/u.test(value)
+        );
+      }
+      return false;
+    },
+  };
   const planRequest = createDemoPlanRequest();
   return {
     plan: planStageGraph(planRequest),
@@ -321,6 +337,7 @@ export function createDemoRuntime(
     guards: [guard],
     audit,
     inputs: { text: DEMO_INPUT },
+    outputVerifier,
   };
 }
 
@@ -333,6 +350,7 @@ export async function runDemo(
     adapters: runtime.adapters,
     guards: runtime.guards,
     inputs: runtime.inputs,
+    outputVerifier: runtime.outputVerifier,
   });
   const finalAnswer = result.values['reason.answer'];
   if (typeof finalAnswer !== 'string') throw new Error('demo_answer_missing');
