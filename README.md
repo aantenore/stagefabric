@@ -55,6 +55,8 @@ is intentionally outside the supported engine range.
 pnpm install --frozen-lockfile
 pnpm build
 pnpm stagefabric demo
+pnpm stagefabric context-demo
+pnpm stagefabric context-benchmark
 ```
 
 Other commands:
@@ -79,6 +81,61 @@ pnpm stagefabric serve --host 127.0.0.1 --port 8787
 The HTTP service exposes `GET /healthz`, `POST /v1/plans`, and
 `POST /v1/demo/runs`. It binds to loopback by default. Live execution is CLI and
 library only; this release deliberately adds no remotely invokable run endpoint.
+
+## Context Supply Chain
+
+The narrow Context Supply Chain treats retrieval and prompt assembly as a typed,
+policy-placed pipeline:
+
+```text
+ContextRequest -> classify -> retrieve -> assemble ContextArtifact -> reason
+```
+
+It is not a new RAG implementation or index. `ContextRequest` binds source and
+index locators/digests, classification, freshness, retrieval adapter version,
+budgets, and upstream provenance. `ContextArtifact` binds exact evidence
+locators/content digests, accounting, and the core plan/egress digests. The same
+StageFabric planner decides each placement and records every cross-boundary
+transfer. The `classify` stage deliberately validates and forwards this sealed
+classification metadata; semantic intent or content classification belongs in
+a replaceable upstream stage.
+
+Requests and artifacts have one canonical array order. A verifier rejects a raw
+reordered value even if its digest was recomputed; callers that construct values
+use the sealers to obtain canonical form. Freshness is re-evaluated against the
+injected or current execution clock, and mixed-offset expiries are compared by
+epoch and normalized to UTC. Artifact accounting describes the exact pre-reason
+query and context. A separate digest-bound `ContextRunReceipt` adds the actual
+reasoner output accounting.
+
+Run the credential-free synthetic example and its frozen benchmark:
+
+```bash
+pnpm context:demo
+pnpm context:benchmark
+```
+
+The benchmark compares full context, a fixed-size simple-chunk baseline, and the
+section-aware supply chain across ten frozen single-hop, counterfactual,
+exclusion, and multi-hop cases. Exact fact spans score the selected evidence and
+assembled context before reasoning, so generated prose cannot inflate quality.
+Its kill gate requires exact local/external safety proofs, order-independent
+reproducibility, quality and input cost on the same-baseline Pareto frontier, and
+a measured reduction against full context. Latency is reported outside the
+deterministic digest and is not gated. CI can enforce the result with
+`pnpm context:benchmark:enforce`.
+
+An optional fail-closed PageIndex adapter mirrors the official v0.8.0 tools
+sequence (`getDocument`, `getDocumentStructure`, `getPageContent`). The host
+injects `client.tools` and a bounded page selector. StageFabric imports no
+PageIndex SDK and stores no PageIndex API key, endpoint, or upload policy. The
+adapter pins classification and freshness with each source binding, and applies
+one total deadline plus global call, response, structure, page, evidence, and
+request-budget ceilings across the entire run. Reported `logicalEgressBytes`
+counts canonical cross-stage request/evidence payloads; it is not HTTP wire-byte
+telemetry from the injected SDK. See
+[ADR 0006](docs/adr/0006-context-supply-chain.md) and the
+[delivery contract](docs/delivery-contract-v0.6-context-supply-chain.md).
 
 ## Browser Privacy Bridge
 
@@ -396,10 +453,12 @@ the [v0.2 live-run contract](docs/delivery-contract-v0.2.md),
 [runtime-qualification contract](docs/delivery-contract-v0.3-runtime-qualification.md),
 [authenticated snapshot contract](docs/delivery-contract-v0.4-authenticated-snapshots.md),
 [browser privacy contract](docs/delivery-contract-v0.5-browser-privacy.md),
+[Context Supply Chain contract](docs/delivery-contract-v0.6-context-supply-chain.md),
 [ADR 0002](docs/adr/0002-live-runtime-bindings.md),
 [ADR 0003](docs/adr/0003-runtime-qualification-gate.md),
 [ADR 0004](docs/adr/0004-authenticated-capability-snapshots.md),
-[ADR 0005](docs/adr/0005-browser-privacy-bridge.md), and the
+[ADR 0005](docs/adr/0005-browser-privacy-bridge.md),
+[ADR 0006](docs/adr/0006-context-supply-chain.md), and the
 [threat model](docs/threat-model.md).
 
 ## Safety model

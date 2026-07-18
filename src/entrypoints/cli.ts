@@ -13,6 +13,8 @@ import { loadRuntimeQualificationProfile } from '../adapters/runtime-qualificati
 import { planStageGraph } from '../application/planner.js';
 import { RuntimeQualificationError } from '../application/runtime-qualification.js';
 import { runDemo } from '../composition/demo.js';
+import { benchmarkContextSupplyChain } from '../composition/context-supply-chain-benchmark.js';
+import { runFrozenContextSupplyChain } from '../composition/context-supply-chain.js';
 import { runLiveStageGraph } from '../composition/live-runner.js';
 import { qualifyConfiguredRuntime } from '../composition/runtime-qualification.js';
 import { startStageFabricServer } from './api.js';
@@ -176,6 +178,44 @@ export function createStageFabricCli(
         io.writeOut,
         await runDemo({ leakyRedactor: commandOptions.leaky === true }),
       );
+    });
+
+  program
+    .command('context-demo')
+    .description('Run the deterministic Context Supply Chain reference slice')
+    .action(async () => {
+      const result = await runFrozenContextSupplyChain();
+      writeJson(io.writeOut, {
+        requestId: result.artifact.requestId,
+        planDigest: result.plan.digest,
+        egressDigest: result.egressLedger.digest,
+        stages: result.plan.stages.map((stage) => ({
+          stageId: stage.stageId,
+          targetId: stage.primary.targetId,
+          zone: stage.primary.zone,
+        })),
+        artifactDigest: result.artifact.digest,
+        receiptDigest: result.receipt.digest,
+        evidenceLocators: result.artifact.evidence.map(
+          (evidence) => evidence.evidenceLocator,
+        ),
+        inputAccounting: result.artifact.accounting,
+        consolidatedAccounting: result.receipt.accounting,
+        answer: result.reasoning.answer,
+        citations: result.reasoning.citations,
+      });
+    });
+
+  program
+    .command('context-benchmark')
+    .description('Report the frozen Context Supply Chain quality and cost gate')
+    .option('--enforce', 'return a non-zero status when the spike gate fails')
+    .action(async (commandOptions: { enforce?: boolean }) => {
+      const report = await benchmarkContextSupplyChain();
+      writeJson(io.writeOut, report);
+      if (commandOptions.enforce === true && !report.killGate.passed) {
+        throw new Error('context_supply_chain_kill_gate_failed');
+      }
     });
 
   program

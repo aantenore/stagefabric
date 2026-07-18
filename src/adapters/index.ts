@@ -7,6 +7,7 @@ export * from './live-run-bundle.js';
 export * from './openai-compatible-capability-probe.js';
 export * from './openai-compatible-runtime-operation-qualifier.js';
 export * from './openai-compatible-stage-adapter.js';
+export * from './pageindex-context-stage-adapter.js';
 export * from './runtime-qualification-profile.js';
 export * from './sensitive-data-guard.js';
 export * from './sigstore-capability-snapshot-attestation-verifier.js';

@@ -124,6 +124,12 @@ try {
       "import * as transformers from 'stagefabric/browser/transformers';",
       "assert.equal(typeof root.planStageGraph, 'function');",
       "assert.equal(typeof core.planStageGraph, 'function');",
+      "assert.equal(typeof core.sealContextRequest, 'function');",
+      "assert.equal(typeof core.sealContextArtifact, 'function');",
+      "assert.equal(typeof core.sealContextRunReceipt, 'function');",
+      "assert.equal(typeof root.runFrozenContextSupplyChain, 'function');",
+      "assert.equal(typeof root.benchmarkContextSupplyChain, 'function');",
+      "assert.equal(typeof root.PageIndexContextStageAdapter, 'function');",
       "assert.equal(typeof node.createStageFabricApp, 'function');",
       "assert.equal(typeof node.createBrowserDemoApp, 'function');",
       "assert.equal(typeof browser.BrowserPrivacyBridge, 'function');",
@@ -144,6 +150,27 @@ try {
     runPnpm(['exec', 'stagefabric', '--help'], consumerDirectory),
     /browser-demo/,
   );
+  assert.match(
+    runPnpm(['exec', 'stagefabric', '--help'], consumerDirectory),
+    /context-demo/,
+  );
+  const contextDemo = JSON.parse(
+    runPnpm(['exec', 'stagefabric', 'context-demo'], consumerDirectory),
+  );
+  assert.equal(contextDemo.stages.length, 4);
+  assert.match(contextDemo.receiptDigest, /^sha256:[0-9a-f]{64}$/);
+  const contextBenchmark = JSON.parse(
+    runPnpm(['exec', 'stagefabric', 'context-benchmark'], consumerDirectory),
+  );
+  assert.equal(contextBenchmark.killGate.passed, true);
+  assert.match(contextBenchmark.digest, /^sha256:[0-9a-f]{64}$/);
+  const enforcedContextBenchmark = JSON.parse(
+    runPnpm(
+      ['exec', 'stagefabric', 'context-benchmark', '--enforce'],
+      consumerDirectory,
+    ),
+  );
+  assert.equal(enforcedContextBenchmark.killGate.passed, true);
 
   const validation = JSON.parse(
     runPnpm(
@@ -221,7 +248,10 @@ try {
     join('docs', 'architecture.md'),
     join('docs', 'adr', '0005-browser-privacy-bridge.md'),
     join('docs', 'delivery-contract-v0.5-browser-privacy.md'),
+    join('docs', 'adr', '0006-context-supply-chain.md'),
+    join('docs', 'delivery-contract-v0.6-context-supply-chain.md'),
     join('examples', 'stagefabric.yaml'),
+    join('examples', 'context-supply-chain.ts'),
     join('dist', 'browser-demo', 'index.html'),
   ]) {
     await access(join(installedRoot, requiredPath), constants.R_OK);
@@ -232,12 +262,20 @@ try {
     typeConsumer,
     [
       "import { planStageGraph } from 'stagefabric';",
+      "import { PageIndexContextStageAdapter, benchmarkContextSupplyChain, runFrozenContextSupplyChain } from 'stagefabric';",
       "import { planStageGraph as planCoreStageGraph } from 'stagefabric/core';",
+      "import { sealContextArtifact, sealContextRequest, sealContextRunReceipt } from 'stagefabric/core';",
       "import { createStageFabricApp } from 'stagefabric/node';",
       "import { BrowserPrivacyBridge } from 'stagefabric/browser';",
       "import { TransformersSensitiveSpanClassifier } from 'stagefabric/browser/transformers';",
       'void planStageGraph;',
+      'void PageIndexContextStageAdapter;',
+      'void benchmarkContextSupplyChain;',
+      'void runFrozenContextSupplyChain;',
       'void planCoreStageGraph;',
+      'void sealContextArtifact;',
+      'void sealContextRequest;',
+      'void sealContextRunReceipt;',
       'void createStageFabricApp;',
       'void BrowserPrivacyBridge;',
       'void TransformersSensitiveSpanClassifier;',

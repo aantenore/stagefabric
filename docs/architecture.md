@@ -28,6 +28,35 @@ flowchart LR
   O --> V["Ollama / vLLM / serving layer"]
 ```
 
+The Context Supply Chain reuses the same core for evidence selection and prompt
+assembly without adding an index:
+
+```mermaid
+flowchart LR
+  R["ContextRequest"] --> C["validate classification"]
+  C --> V["retrieve via registered adapter"]
+  V --> A["assemble ContextArtifact"]
+  A --> N["reason with bounded context"]
+  P["Core placement policy"] --> C
+  P --> V
+  P --> A
+  P --> N
+  P --> E["Existing egress ledger"]
+```
+
+The optional PageIndex adapter is a Node composition adapter. The operator
+injects a structurally compatible `client.tools` object and page selector; the
+core has no PageIndex SDK, credential, endpoint, or import path. Operator
+bindings pin source/index identity, classification, and freshness. A run-wide
+deadline and aggregate call, response, structure, page, evidence, and logical
+egress ceilings bound the complete multi-source workflow.
+
+The assembled artifact is canonical and accounts only for the query/context
+input and logical cross-stage payload. The final run receipt adds real reasoner
+output accounting and binds it to the request, artifact, plan, and egress
+digests. `logicalEgressBytes` is policy-bound payload accounting, not transport
+wire telemetry.
+
 Runtime qualification is a separate, opt-in evidence path:
 
 ```mermaid
@@ -104,7 +133,8 @@ shared atomic store.
 - `domain`: core-neutral graph/snapshot/runtime-binding schemas, typed contracts,
   canonical hashing, classifications, attestation statement semantics, trust
   policy, challenge, and reason codes. Runtime-binding and attestation domain
-  contracts are available from `stagefabric/core`; Node YAML/file codecs are not.
+  contracts plus `ContextRequest`/`ContextArtifact` are available from
+  `stagefabric/core`; Node YAML/file codecs are not.
 - `application`: planning and execution use cases. Planning is pure; execution
   depends only on ports. Runtime qualification adds a bounded deterministic
   orchestrator. Snapshot authentication verifies signed-statement semantics and

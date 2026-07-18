@@ -2,6 +2,21 @@
 
 All notable changes to StageFabric are documented in this file.
 
+## Unreleased
+
+### Added
+
+- Canonical, digest-bound `ContextRequest`, pre-reason `ContextArtifact`, and
+  consolidated `ContextRunReceipt` contracts for a policy-placed
+  `classify -> retrieve -> assemble -> reason` supply chain, with execution-time
+  freshness and exact input/output accounting.
+- Credential-free frozen context demo and ten-case exact-fact benchmark against
+  same-budget full-context/simple-chunk baselines, with safety, Pareto, size,
+  latency, logical-egress, and permutation-reproducibility evidence.
+- Optional injected PageIndex v0.8 tools adapter with strict source bindings,
+  a total deadline and global call/response/structure/page/evidence budgets, and
+  no core SDK, endpoint, credential, or dynamic-import dependency.
+
 ## [0.5.0-alpha.1] - 2026-07-17
 
 ### Added

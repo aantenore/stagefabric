@@ -139,5 +139,34 @@ describe('CLI', () => {
     const versionCode = await runCli(['node', 'stagefabric', '--version'], io);
     expect(versionCode).toBe(0);
     expect(output).toBe(`${packageMetadata.version}\n`);
+
+    output = '';
+    const contextCode = await runCli(
+      ['node', 'stagefabric', 'context-demo'],
+      io,
+    );
+    expect(contextCode).toBe(0);
+    expect(output).toContain('"stageId": "retrieve"');
+    expect(output).toContain('"artifactDigest": "sha256:');
+    expect(output).toContain('"receiptDigest": "sha256:');
+    expect(output).toContain('"consolidatedAccounting"');
+
+    output = '';
+    const benchmarkCode = await runCli(
+      ['node', 'stagefabric', 'context-benchmark'],
+      io,
+    );
+    expect(benchmarkCode).toBe(0);
+    expect(output).toContain('"passed": true');
+
+    output = '';
+    errors = '';
+    const enforcedBenchmarkCode = await runCli(
+      ['node', 'stagefabric', 'context-benchmark', '--enforce'],
+      io,
+    );
+    expect(enforcedBenchmarkCode).toBe(0);
+    expect(output).toContain('"passed": true');
+    expect(errors).toBe('');
   });
 });
