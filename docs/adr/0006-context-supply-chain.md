@@ -1,7 +1,7 @@
 # ADR 0006: treat context as a policy-governed supply chain
 
 - Status: accepted and implemented
-- Target: next alpha
+- Target: `v0.6.0-alpha.1`
 - Date: 2026-07-18
 
 ## Context

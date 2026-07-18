@@ -4,6 +4,8 @@ All notable changes to StageFabric are documented in this file.
 
 ## Unreleased
 
+## [0.6.0-alpha.1] - 2026-07-19
+
 ### Added
 
 - Canonical, digest-bound `ContextRequest`, pre-reason `ContextArtifact`, and

@@ -1,5 +1,8 @@
 # Delivery contract: Context Supply Chain vertical slice
 
+- Target release: `v0.6.0-alpha.1`
+- Status: implemented for `v0.6.0-alpha.1`
+
 ## Outcome
 
 Given a valid `ContextRequest`, StageFabric compiles and executes the strict
