@@ -12,6 +12,7 @@ import {
   ExecutionPlacementEvidenceError,
   executionPlacementEvidenceSchema,
   parseExecutionPlacementEvidence,
+  sealExecutionPlacementEvidence,
   verifyExecutionPlacementEvidenceDigest,
 } from '../../src/domain/execution-placement-evidence.js';
 import { sealRuntimeBindings } from '../../src/domain/runtime-bindings.js';
@@ -288,5 +289,67 @@ describe('ExecutionPlacementEvidence', () => {
         },
       }),
     ).toThrowError(ExecutionPlacementEvidenceCreationError);
+  });
+
+  it('allows only retry failures that can precede a successful run', async () => {
+    const evidence = createExecutionPlacementEvidence({
+      runId: RAW_RUN_ID,
+      observedAt: OBSERVED_AT,
+      result: await successfulLiveResult(),
+    });
+    const { digest, ...content } = evidence;
+    expect(digest).toMatch(/^sha256:/);
+    const completed = content.trace[0]!;
+    const selected = content.placements[0]!;
+
+    expect(() =>
+      sealExecutionPlacementEvidence({
+        ...content,
+        placements: [{ ...selected, attempt: 2 }],
+        trace: [
+          {
+            ...completed,
+            attempt: 1,
+            status: 'failed',
+            reasonCode: 'retryable_pre_output_status',
+            statusCode: 503,
+          },
+          { ...completed, attempt: 2 },
+        ],
+      }),
+    ).not.toThrow();
+
+    expect(() =>
+      sealExecutionPlacementEvidence({
+        ...content,
+        placements: [{ ...selected, attempt: 2 }],
+        trace: [
+          {
+            ...completed,
+            attempt: 1,
+            status: 'failed',
+            reasonCode: 'adapter_failed',
+          },
+          { ...completed, attempt: 2 },
+        ],
+      }),
+    ).toThrow();
+
+    expect(() =>
+      sealExecutionPlacementEvidence({
+        ...content,
+        placements: [{ ...selected, attempt: 2 }],
+        trace: [
+          {
+            ...completed,
+            attempt: 1,
+            status: 'failed',
+            reasonCode: 'retryable_pre_output_status',
+            statusCode: 418,
+          },
+          { ...completed, attempt: 2 },
+        ],
+      }),
+    ).toThrow();
   });
 });

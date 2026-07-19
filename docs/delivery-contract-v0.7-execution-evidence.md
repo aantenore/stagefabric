@@ -29,19 +29,19 @@ because it consumes `LiveRunResult`; the filesystem writer is Node-only.
 
 ## Requirements and acceptance evidence
 
-| ID   | Requirement                                                                                                 | Priority                                                  | Acceptance evidence                                     |
-| ---- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------- |
-| EP1  | Fixed API/kind/producer/disclosure/authority and strict unknown-field rejection                             | Must                                                      | schema/parser unit tests                                |
-| EP2  | Host run ID is retained only as canonical SHA-256 and changing it changes the evidence digest               | Must                                                      | correlation-digest tests                                |
-| EP3  | Plan, binding, snapshot, and egress digests agree with one coherent successful live result                  | Must                                                      | creator coherence and tamper tests                      |
-| EP4  | Raw stage/target/zone/adapter IDs are replaced by canonical digests; attempts/status/reasons are bounded    | Must                                                      | projection and adversarial schema tests                 |
-| EP5  | Inputs, outputs, content-derived hashes, models, endpoints, credentials, and raw provider errors are absent | Must                                                      | explicit sentinel and negative-hash tests               |
-| EP6  | Top-level canonical digest is verified by the exported parser                                               | Must                                                      | mutation and parser tests                               |
-| EP7  | CLI evidence flags are an all-or-nothing pair validated before live provider work                           | Must                                                      | paired-option integration tests                         |
-| EP8  | Final output uses `O_NOFOLLOW                                                                               | O_EXCL`, never clobbers, and is private (`0600`) on POSIX | Must                                                    | file adapter, existing-path, symlink, and mode tests |
-| EP9  | Failed execution creates no evidence path and persistence failure emits no normal run output                | Must                                                      | live failure and no-clobber integration tests           |
-| EP10 | Normal CLI JSON exposes only evidence digest/path metadata rather than artifact contents or raw host run ID | Must                                                      | CLI projection integration test                         |
-| EP11 | Existing live, authenticated, browser, context, package, and cross-platform behavior remain compatible      | Must                                                      | full `pnpm check`, build, package, and browser CI gates |
+| ID   | Requirement                                                                                                 | Priority | Acceptance evidence                                     |
+| ---- | ----------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------- |
+| EP1  | Fixed API/kind/producer/disclosure/authority and strict unknown-field rejection                             | Must     | schema/parser unit tests                                |
+| EP2  | Host run ID is retained only as canonical SHA-256 and changing it changes the evidence digest               | Must     | correlation-digest tests                                |
+| EP3  | Plan, binding, snapshot, and egress digests agree with one coherent successful live result                  | Must     | creator coherence and tamper tests                      |
+| EP4  | Raw stage/target/zone/adapter IDs are replaced by canonical digests; attempts/status/reasons are bounded    | Must     | projection and adversarial schema tests                 |
+| EP5  | Inputs, outputs, content-derived hashes, models, endpoints, credentials, and raw provider errors are absent | Must     | explicit sentinel and negative-hash tests               |
+| EP6  | Top-level canonical digest is verified by the exported parser                                               | Must     | mutation and parser tests                               |
+| EP7  | CLI evidence flags are an all-or-nothing pair validated before live provider work                           | Must     | paired-option integration tests                         |
+| EP8  | Final output uses `O_NOFOLLOW` and `O_EXCL`, never clobbers, and is private (`0600`) on POSIX               | Must     | file adapter, existing-path, symlink, and mode tests    |
+| EP9  | Failed execution creates no evidence path and persistence failure emits no normal run output                | Must     | live failure and no-clobber integration tests           |
+| EP10 | Normal CLI JSON exposes only evidence digest/path metadata rather than artifact contents or raw host run ID | Must     | CLI projection integration test                         |
+| EP11 | Existing live, authenticated, browser, context, package, and cross-platform behavior remain compatible      | Must     | full `pnpm check`, build, package, and browser CI gates |
 
 ## Release gate
 

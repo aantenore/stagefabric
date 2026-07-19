@@ -25,11 +25,13 @@ export const executionPlacementEvidenceRunIdSchema = z
 export const executionPlacementEvidenceReasonCodeSchema = z.enum([
   'completed',
   'retryable_pre_output_status',
-  'adapter_not_registered',
-  'adapter_failed',
-  'invalid_outputs',
-  'input_policy_rejected',
-  'output_policy_rejected',
+]);
+
+const executionPlacementEvidenceRetryableStatusSchema = z.union([
+  z.literal(429),
+  z.literal(502),
+  z.literal(503),
+  z.literal(504),
 ]);
 
 const digestedPlacementShape = {
@@ -57,7 +59,7 @@ export const executionPlacementEvidenceTraceEventSchema = z
     ...digestedPlacementShape,
     status: z.enum(['succeeded', 'failed']),
     reasonCode: executionPlacementEvidenceReasonCodeSchema,
-    statusCode: z.number().int().min(100).max(599).optional(),
+    statusCode: executionPlacementEvidenceRetryableStatusSchema.optional(),
   })
   .strict()
   .superRefine((event, context) => {

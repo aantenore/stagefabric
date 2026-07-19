@@ -1,5 +1,5 @@
 import { constants } from 'node:fs';
-import { open, unlink } from 'node:fs/promises';
+import { open } from 'node:fs/promises';
 
 import { canonicalJson } from '../domain/canonical.js';
 import {
@@ -48,7 +48,6 @@ export async function writeExecutionPlacementEvidenceFile(
   }
 
   let file;
-  let created = false;
   let failure: unknown;
   try {
     file = await open(
@@ -59,7 +58,6 @@ export async function writeExecutionPlacementEvidenceFile(
         constants.O_NOFOLLOW,
       0o600,
     );
-    created = true;
     await file.writeFile(source, 'utf8');
     await file.sync();
   } catch (error) {
@@ -73,13 +71,11 @@ export async function writeExecutionPlacementEvidenceFile(
   }
 
   if (failure !== undefined) {
-    if (created) {
-      try {
-        await unlink(path);
-      } catch {
-        // A failed write is never reported as successful. Cleanup is best effort.
-      }
-    }
+    // Do not unlink by pathname after opening. A process with write access to
+    // the parent directory could replace that name while this handle is open,
+    // turning best-effort cleanup into deletion of an unrelated entry. A
+    // post-open failure can therefore leave a private, unconfirmed file for the
+    // operator to inspect and remove explicitly.
     throw new ExecutionPlacementEvidenceFileError(
       noClobberError(failure)
         ? 'execution_evidence_output_exists'
