@@ -2,6 +2,39 @@
 
 **Policy-driven placement for hybrid AI pipelines.**
 
+## In plain English
+
+- **Problem:** an AI application may use the browser, a laptop, an edge device,
+  and the cloud in one workflow. Without a shared plan, sensitive data can reach
+  the wrong place and nobody can clearly explain why each step ran where it did.
+- **What it does:** StageFabric turns a multi-step AI workflow into a reviewable
+  execution plan. It chooses an allowed location for every step, blocks plans
+  that violate policy, and records cross-boundary movement without storing the
+  prompt or response in its trace.
+- **Who it is for:** AI platform, application, privacy, and infrastructure teams
+  building hybrid or distributed AI systems.
+- **Concrete example:** the bundled simulated pipeline starts with a contact note
+  containing an email address and phone number. It classifies and redacts the
+  note close to the user, keeps the original identifiers away from edge and
+  cloud stages, and records why the safe result may move onward.
+
+| Feature                                                               | Real-world benefit                                                                                                          |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Policy-based placement across browser, local, edge, and cloud targets | Teams can decide where every processing step is allowed to run before execution.                                            |
+| Data classification, controlled reclassification, and movement ledger | Sensitive information cannot silently cross a declared trust boundary.                                                      |
+| Explainable rejection reasons and ordered fallbacks                   | Operators can understand why a target was rejected and which safe alternative was selected.                                 |
+| Browser Privacy Bridge                                                | Applications can redact and verify data in a worker before authorizing the exact safe output to leave the browser boundary. |
+| Context Supply Chain                                                  | Retrieval and prompt assembly can carry freshness, provenance, budget, and data-movement evidence through the same plan.    |
+| Execution evidence that omits content                                 | External lineage tools can verify where work ran without receiving prompts, answers, or credentials.                        |
+
+> **Maturity and limits:** StageFabric is an experimental alpha reference
+> implementation. Its planner is deterministic and greedy, not a globally
+> optimal scheduler. Live execution is available through the library and CLI;
+> the HTTP service intentionally does not expose a remote live-run endpoint.
+> StageFabric coordinates replaceable runtimes but is not itself a model server.
+
+## Technical overview
+
 StageFabric compiles a typed AI stage graph into an explainable execution plan
 across browser, local, edge, and cloud targets. Privacy constraints are hard
 placement rules: data cannot cross a boundary unless the plan contains a valid,
