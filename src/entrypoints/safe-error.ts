@@ -3,6 +3,7 @@ import { ZodError } from 'zod';
 
 import { CapabilityAttestationFileError } from '../adapters/capability-snapshot-attestation-files.js';
 import { ConfigBundleError } from '../adapters/config-bundle.js';
+import { ExecutionPlacementEvidenceFileError } from '../adapters/execution-placement-evidence-file.js';
 import { FileChallengeError } from '../adapters/file-capability-snapshot-challenge.js';
 import { CapabilityProbeError } from '../adapters/openai-compatible-capability-probe.js';
 import { LiveRunBundleError } from '../adapters/live-run-bundle.js';
@@ -13,6 +14,7 @@ import { isExecutionError } from '../application/executor.js';
 import { PlannerError } from '../application/planner.js';
 import { RuntimeQualificationError } from '../application/runtime-qualification.js';
 import { AuthenticatedLiveRunnerError } from '../composition/authenticated-live-runner.js';
+import { ExecutionPlacementEvidenceCreationError } from '../composition/execution-placement-evidence.js';
 import { LiveRunnerError } from '../composition/live-runner.js';
 import { CapabilitySnapshotAttestationError } from '../domain/capability-snapshot-attestation.js';
 
@@ -23,11 +25,13 @@ export interface SafeErrorBody {
 export function safeErrorBody(error: unknown): SafeErrorBody {
   if (
     error instanceof CapabilityAttestationFileError ||
+    error instanceof ExecutionPlacementEvidenceFileError ||
     error instanceof FileChallengeError ||
     error instanceof CapabilityAttestationVerificationError ||
     error instanceof AuthenticateCapabilitySnapshotError ||
     error instanceof CapabilitySnapshotAttestationError ||
-    error instanceof AuthenticatedLiveRunnerError
+    error instanceof AuthenticatedLiveRunnerError ||
+    error instanceof ExecutionPlacementEvidenceCreationError
   ) {
     return { error: { code: error.code } };
   }

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { Command, CommanderError, InvalidArgumentError } from 'commander';
 
 import { loadConfigBundle } from '../adapters/config-bundle.js';
+import { writeExecutionPlacementEvidenceFile } from '../adapters/execution-placement-evidence-file.js';
 import {
   loadLiveRunBundle,
   loadRuntimeBindingsFile,
@@ -15,8 +16,10 @@ import { RuntimeQualificationError } from '../application/runtime-qualification.
 import { runDemo } from '../composition/demo.js';
 import { benchmarkContextSupplyChain } from '../composition/context-supply-chain-benchmark.js';
 import { runFrozenContextSupplyChain } from '../composition/context-supply-chain.js';
+import { createExecutionPlacementEvidence } from '../composition/execution-placement-evidence.js';
 import { runLiveStageGraph } from '../composition/live-runner.js';
 import { qualifyConfiguredRuntime } from '../composition/runtime-qualification.js';
+import { executionPlacementEvidenceRunIdSchema } from '../domain/execution-placement-evidence.js';
 import { startStageFabricServer } from './api.js';
 import { startBrowserDemoServer } from './browser-demo.js';
 import {
@@ -73,6 +76,31 @@ function parsePort(value: string): number {
   return port;
 }
 
+interface LiveRunCliOptions {
+  readonly bindings: string;
+  readonly evidenceRunId?: string;
+  readonly evidenceOutput?: string;
+}
+
+function evidenceOptions(
+  options: LiveRunCliOptions,
+): { readonly runId: string; readonly output: string } | undefined {
+  const hasRunId = options.evidenceRunId !== undefined;
+  const hasOutput = options.evidenceOutput !== undefined;
+  if (hasRunId !== hasOutput) {
+    throw new CommanderError(
+      1,
+      'execution_evidence_option_pair_required',
+      '--evidence-run-id and --evidence-output must be provided together',
+    );
+  }
+  if (!hasRunId || options.evidenceOutput === undefined) return undefined;
+  return {
+    runId: executionPlacementEvidenceRunIdSchema.parse(options.evidenceRunId),
+    output: options.evidenceOutput,
+  };
+}
+
 export function createStageFabricCli(
   io: CliIo = defaultIo,
   dependencies: AuthenticatedCliDependencies = {},
@@ -122,12 +150,35 @@ export function createStageFabricCli(
       '--bindings <path>',
       'operator-owned runtime bindings file (never loaded from the graph)',
     )
-    .action(async (bundlePath: string, options: { bindings: string }) => {
+    .option(
+      '--evidence-run-id <id>',
+      'host run identifier to bind by digest into content-free evidence',
+    )
+    .option(
+      '--evidence-output <path>',
+      'new private JSON file for content-free execution evidence',
+    )
+    .action(async (bundlePath: string, options: LiveRunCliOptions) => {
+      const requestedEvidence = evidenceOptions(options);
       const [bundle, bindings] = await Promise.all([
         loadLiveRunBundle(bundlePath),
         loadRuntimeBindingsFile(options.bindings),
       ]);
       const result = await runLiveStageGraph({ ...bundle, bindings });
+      const evidence =
+        requestedEvidence === undefined
+          ? undefined
+          : createExecutionPlacementEvidence({
+              runId: requestedEvidence.runId,
+              observedAt: new Date().toISOString(),
+              result,
+            });
+      if (evidence !== undefined && requestedEvidence !== undefined) {
+        await writeExecutionPlacementEvidenceFile(
+          requestedEvidence.output,
+          evidence,
+        );
+      }
       writeJson(io.writeOut, {
         graphName: result.plan.graphName,
         bindingDigest: result.bindingDigest,
@@ -140,6 +191,14 @@ export function createStageFabricCli(
         })),
         outputs: result.outputs,
         trace: result.execution.trace,
+        ...(evidence === undefined || requestedEvidence === undefined
+          ? {}
+          : {
+              evidence: {
+                digest: evidence.digest,
+                path: requestedEvidence.output,
+              },
+            }),
       });
     });
 

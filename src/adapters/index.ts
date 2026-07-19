@@ -1,6 +1,7 @@
 export * from './bounded-fetch.js';
 export * from './capability-snapshot-attestation-files.js';
 export * from './config-bundle.js';
+export * from './execution-placement-evidence-file.js';
 export * from './file-capability-snapshot-challenge.js';
 export * from './in-process-stage-adapter.js';
 export * from './live-run-bundle.js';
