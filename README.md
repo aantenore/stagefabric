@@ -34,7 +34,7 @@ StageFabric makes that decision deterministic and testable:
 
 ## Status
 
-StageFabric is an experimental `v0.6.0-alpha.1` reference implementation. Its
+StageFabric is an experimental `v0.7.0-alpha.1` reference implementation. Its
 planner is deliberately deterministic and greedy, not a globally optimal
 scheduler. The original in-process demo remains reproducible without credentials
 or model downloads. The opt-in Live Fabric Runner now probes and executes real
@@ -43,7 +43,10 @@ of the stage graph. A separate authenticated path can transport a capability
 snapshot across processes, verify its signer and bounded evidence, compile a
 reviewable plan, and consume a single-use challenge before execution. The
 Browser Privacy Bridge adds a provider-neutral, fail-closed browser path that
-redacts in a Dedicated Worker and authorizes only the exact verified output.
+redacts in a Dedicated Worker and authorizes only the exact verified output. A
+successful live run can now emit sealed, content-free execution-placement
+evidence for an external lineage or conformance system without granting it any
+runtime authority.
 
 ## Quick start
 
@@ -308,6 +311,40 @@ observed. Only digests, dimensions, output length, and status were retained; see
 the [content-free qualification evidence](docs/evidence/ollama-qualification-2026-07-17.md).
 This closes the alpha evidence target, not the broader beta bar for multiple
 runtimes and operating systems.
+
+### Content-free execution placement evidence
+
+A host can correlate a successful live run with an external lineage system while
+keeping application and provider content out of the artifact:
+
+```bash
+pnpm stagefabric run examples/live-stagefabric.yaml \
+  --bindings examples/runtime-bindings.ollama.yaml \
+  --evidence-run-id host-run-2026-07-19-001 \
+  --evidence-output .stagefabric/execution-evidence.json
+```
+
+The evidence options are an all-or-nothing pair. The file is created only after
+the live run succeeds, with no-follow/exclusive no-clobber flags and mode `0600`
+on POSIX. Normal CLI JSON contains only the evidence digest and selected output
+path in addition to the existing run result; it never echoes the evidence or raw
+run identifier.
+
+`ExecutionPlacementEvidence` fixes `producer: stagefabric`,
+`disclosure: content-free`, and `authority: observation-only`. It binds the
+host-provided run identifier by canonical SHA-256 together with observation,
+plan, binding, snapshot, and egress digests. Placement and trace entries retain
+only canonical SHA-256 digests of stage, target, zone, and adapter identifiers,
+plus bounded attempt/status/reason metadata. Inputs, outputs, output hashes,
+models, endpoints, credentials, raw identifiers, and raw provider errors are not
+read into the projection.
+
+The top-level digest detects artifact mutation; it is not a signature, provenance
+claim, authorization grant, or proof that a provider behaved honestly. An
+external system may bind or attest the artifact bytes independently, but must not
+derive placement, declassification, credential, side-effect, or execution
+authority from them. See [ADR 0007](docs/adr/0007-content-free-execution-evidence.md)
+and the [v0.7 delivery contract](docs/delivery-contract-v0.7-execution-evidence.md).
 
 ## Authenticated transported snapshots
 

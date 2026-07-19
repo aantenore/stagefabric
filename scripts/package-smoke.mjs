@@ -127,6 +127,10 @@ try {
       "assert.equal(typeof core.sealContextRequest, 'function');",
       "assert.equal(typeof core.sealContextArtifact, 'function');",
       "assert.equal(typeof core.sealContextRunReceipt, 'function');",
+      "assert.equal(typeof core.parseExecutionPlacementEvidence, 'function');",
+      "assert.equal(typeof core.verifyExecutionPlacementEvidenceDigest, 'function');",
+      "assert.equal(typeof root.createExecutionPlacementEvidence, 'function');",
+      "assert.equal(typeof root.writeExecutionPlacementEvidenceFile, 'function');",
       "assert.equal(typeof root.runFrozenContextSupplyChain, 'function');",
       "assert.equal(typeof root.benchmarkContextSupplyChain, 'function');",
       "assert.equal(typeof root.PageIndexContextStageAdapter, 'function');",
@@ -136,6 +140,7 @@ try {
       "assert.equal(typeof browser.redactWithCascade, 'function');",
       "assert.equal(typeof transformers.TransformersSensitiveSpanClassifier, 'function');",
       "assert.equal('createStageFabricApp' in core, false);",
+      "assert.equal('writeExecutionPlacementEvidenceFile' in core, false);",
       '',
     ].join('\n'),
   );
@@ -153,6 +158,14 @@ try {
   assert.match(
     runPnpm(['exec', 'stagefabric', '--help'], consumerDirectory),
     /context-demo/,
+  );
+  assert.match(
+    runPnpm(['exec', 'stagefabric', 'run', '--help'], consumerDirectory),
+    /--evidence-run-id/,
+  );
+  assert.match(
+    runPnpm(['exec', 'stagefabric', 'run', '--help'], consumerDirectory),
+    /--evidence-output/,
   );
   const contextDemo = JSON.parse(
     runPnpm(['exec', 'stagefabric', 'context-demo'], consumerDirectory),
@@ -250,6 +263,8 @@ try {
     join('docs', 'delivery-contract-v0.5-browser-privacy.md'),
     join('docs', 'adr', '0006-context-supply-chain.md'),
     join('docs', 'delivery-contract-v0.6-context-supply-chain.md'),
+    join('docs', 'adr', '0007-content-free-execution-evidence.md'),
+    join('docs', 'delivery-contract-v0.7-execution-evidence.md'),
     join('examples', 'stagefabric.yaml'),
     join('examples', 'context-supply-chain.ts'),
     join('dist', 'browser-demo', 'index.html'),
@@ -265,6 +280,8 @@ try {
       "import { PageIndexContextStageAdapter, benchmarkContextSupplyChain, runFrozenContextSupplyChain } from 'stagefabric';",
       "import { planStageGraph as planCoreStageGraph } from 'stagefabric/core';",
       "import { sealContextArtifact, sealContextRequest, sealContextRunReceipt } from 'stagefabric/core';",
+      "import { parseExecutionPlacementEvidence, verifyExecutionPlacementEvidenceDigest } from 'stagefabric/core';",
+      "import { createExecutionPlacementEvidence, writeExecutionPlacementEvidenceFile } from 'stagefabric';",
       "import { createStageFabricApp } from 'stagefabric/node';",
       "import { BrowserPrivacyBridge } from 'stagefabric/browser';",
       "import { TransformersSensitiveSpanClassifier } from 'stagefabric/browser/transformers';",
@@ -276,6 +293,10 @@ try {
       'void sealContextArtifact;',
       'void sealContextRequest;',
       'void sealContextRunReceipt;',
+      'void parseExecutionPlacementEvidence;',
+      'void verifyExecutionPlacementEvidenceDigest;',
+      'void createExecutionPlacementEvidence;',
+      'void writeExecutionPlacementEvidenceFile;',
       'void createStageFabricApp;',
       'void BrowserPrivacyBridge;',
       'void TransformersSensitiveSpanClassifier;',

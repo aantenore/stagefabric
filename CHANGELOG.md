@@ -4,6 +4,23 @@ All notable changes to StageFabric are documented in this file.
 
 ## Unreleased
 
+## [0.7.0-alpha.1] - 2026-07-19
+
+### Added
+
+- Strict, digest-bound `ExecutionPlacementEvidence` for successful live runs,
+  with fixed observation-only authority, canonical host-run correlation, and
+  content-free placement/trace identifier digests.
+- Optional paired `stagefabric run --evidence-run-id/--evidence-output` flags
+  with exclusive no-clobber, no-symlink-following, private file creation.
+
+### Security
+
+- Execution evidence excludes inputs, outputs, content-derived hashes, model
+  names, endpoints, credentials, and raw run/stage/target/zone/adapter identifiers.
+- Evidence is projected only after successful execution and cannot grant
+  placement, declassification, credential, side-effect, or execution authority.
+
 ## [0.6.0-alpha.1] - 2026-07-19
 
 ### Added

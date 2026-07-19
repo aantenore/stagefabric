@@ -26,7 +26,17 @@ flowchart LR
   B --> F
   F --> O["OpenAI-compatible adapter"]
   O --> V["Ollama / vLLM / serving layer"]
+  O --> L["Successful LiveRunResult"]
+  L --> E["Observation-only evidence projection"]
 ```
+
+The optional projection runs only after the live execution promise resolves. It
+does not add an observer, callback, or evidence sink inside the executor. The
+strict artifact canonical-hashes the host run ID and raw placement identifiers,
+binds the already sealed plan/binding/snapshot/egress digests, and copies only
+bounded execution status metadata. Application inputs, outputs, content hashes,
+runtime models, endpoints, credentials, and raw identifiers are outside the
+projection. Its fixed `observation-only` authority is a hard ceiling.
 
 The Context Supply Chain reuses the same core for evidence selection and prompt
 assembly without adding an index:
@@ -132,9 +142,10 @@ shared atomic store.
 
 - `domain`: core-neutral graph/snapshot/runtime-binding schemas, typed contracts,
   canonical hashing, classifications, attestation statement semantics, trust
-  policy, challenge, and reason codes. Runtime-binding and attestation domain
-  contracts plus `ContextRequest`/`ContextArtifact` are available from
-  `stagefabric/core`; Node YAML/file codecs are not.
+  policy, challenge, reason codes, and content-free execution-evidence semantics.
+  Runtime-binding, attestation, and execution-evidence contracts plus
+  `ContextRequest`/`ContextArtifact` are available from `stagefabric/core`; Node
+  YAML/file codecs are not.
 - `application`: planning and execution use cases. Planning is pure; execution
   depends only on ports. Runtime qualification adds a bounded deterministic
   orchestrator. Snapshot authentication verifies signed-statement semantics and
@@ -145,10 +156,12 @@ shared atomic store.
 - `adapters`: configuration codecs, bounded network boundary, capability probe,
   in-process targets, OpenAI-compatible provider adapter, opt-in qualifier,
   bounded evidence-file loaders, official Sigstore verification, and a
-  single-host file challenge consumer.
+  single-host file challenge consumer. The Node evidence writer uses exclusive,
+  no-following private file creation and never replaces an existing path.
 - `entrypoints`: CLI, authenticated local workflow, and Hono HTTP API.
 - `composition`: the only place where concrete adapters are registered and the
-  pre-execution trust fence is assembled.
+  pre-execution trust fence is assembled. The successful live-result evidence
+  projection also lives here so the domain contract does not depend on a runtime.
 
 The alpha `RuntimeBindings` provider schema currently admits only the
 OpenAI-compatible wire kind. The qualifier port and report are provider-keyed,
