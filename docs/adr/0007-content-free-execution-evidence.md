@@ -36,9 +36,11 @@ It canonical-hashes a bounded host-provided run identifier and binds a host
 observation timestamp plus the successful result's plan, runtime-binding,
 capability-snapshot, and egress-ledger digests. Placement and trace entries keep
 only canonical SHA-256 digests of stage, target, zone, and adapter-kind
-identifiers. Attempts, outcome, allowlisted reason code, and the bounded HTTP
-status used for a retryable pre-output failure are the only non-digest execution
-metadata. A canonical top-level SHA-256 seals the artifact.
+identifiers. Attempts, outcome, the `completed` or
+`retryable_pre_output_status` reason code, and an allowlisted retryable HTTP
+status (`429`, `502`, `503`, or `504`) are the only non-digest execution
+metadata. Terminal failures cannot appear in this successful-run artifact. A
+canonical top-level SHA-256 seals the artifact.
 
 The composition creator validates that:
 
@@ -103,5 +105,9 @@ are distinct concerns. Authenticity remains an external host responsibility.
   remain guessable and evidence still requires access control.
 - A failed run produces no success artifact in the CLI. Failure evidence, if ever
   added, requires a distinct kind and semantics rather than weakening this one.
+- A post-open write or sync failure may leave a private, unconfirmed file.
+  The writer does not unlink by pathname after opening because that name could
+  have been replaced; explicit operator cleanup is safer than deleting an
+  unrelated entry.
 - The reference writer protects the final path component. Operators remain
   responsible for a trusted private parent directory and distributed storage.

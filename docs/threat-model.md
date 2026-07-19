@@ -56,7 +56,7 @@ POSIX) reused across invocations.
 | Secrets or payloads leak to evidence                              | Allowlisted traces/errors and projected execution evidence; requested leaf outputs are returned separately                                                           |
 | Raw identifiers or content leak to persisted execution evidence   | Run/stage/target/zone/adapter identifiers are canonical-hashed; inputs, outputs, content hashes, models, endpoints, credentials, and raw errors are never projected  |
 | Observation evidence becomes runtime authority                    | Strict fixed `authority: observation-only`; evidence is created after execution and is never consumed by the planner, executor, declassification, or credential path |
-| Evidence output replaces or follows an operator-controlled path   | Paired opt-in flags; post-success write with `O_NOFOLLOW                                                                                                             | O_EXCL`, no-clobber behavior, and mode `0600` on POSIX |
+| Evidence output replaces or follows an operator-controlled path   | Paired opt-in flags; post-success write with `O_NOFOLLOW` and `O_EXCL`, no-clobber behavior, and mode `0600` on POSIX                                                |
 | Failed execution leaves a misleading success artifact             | Creator accepts only a coherent successful `LiveRunResult`; CLI creates no output path until execution has completed successfully                                    |
 | Evidence is changed after creation                                | Strict schema plus canonical top-level digest; parser verifies the digest before returning the artifact                                                              |
 | Duplicate side effects during fallback                            | Retry only before output for an allowlisted failure set; bounded attempts; no replay after partial output or ambiguous timeout                                       |
@@ -134,7 +134,11 @@ provides integrity only; without an external signature or attestation it does no
 prove which host produced it, that the wall clock was honest, or that the provider
 performed the claimed computation. Exclusive file creation protects only the
 final path component; operators must still control parent-directory permissions
-and path-component resolution.
+and path-component resolution. A write or sync failure after exclusive creation
+can leave a private, unconfirmed (possibly partial) file. The writer does not
+unlink by pathname after opening because a replaceable parent entry could turn
+cleanup into deletion of an unrelated file; operators must inspect and remove a
+failed artifact explicitly.
 
 The file challenge consumer provides atomic exclusion only to processes sharing
 one filesystem namespace. Deleting, rotating, or replacing `--challenge-store`

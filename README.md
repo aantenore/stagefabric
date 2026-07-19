@@ -339,6 +339,11 @@ plus bounded attempt/status/reason metadata. Inputs, outputs, output hashes,
 models, endpoints, credentials, raw identifiers, and raw provider errors are not
 read into the projection.
 
+Because the artifact represents a successful run, failed trace attempts are
+limited to pre-output retries with status `429`, `502`, `503`, or `504` before
+the completed placement. Terminal failures require a future, distinct evidence
+kind rather than being represented as success.
+
 The top-level digest detects artifact mutation; it is not a signature, provenance
 claim, authorization grant, or proof that a provider behaved honestly. An
 external system may bind or attest the artifact bytes independently, but must not

@@ -2,6 +2,7 @@ import { verifyExecutionPlanDigest } from '../application/planner.js';
 import { sha256Digest } from '../domain/canonical.js';
 import {
   executionPlacementEvidenceRunIdSchema,
+  executionPlacementEvidenceTraceEventSchema,
   sealExecutionPlacementEvidence,
   type ExecutionPlacementEvidence,
   type ExecutionPlacementEvidencePlacement,
@@ -80,16 +81,22 @@ function assertLiveResultCoherence(result: LiveRunResult): void {
 function traceEvidence(
   result: LiveRunResult,
 ): readonly ExecutionPlacementEvidenceTraceEvent[] {
-  return result.execution.trace.map((event) => ({
-    stageIdDigest: digestIdentifier(event.stageId),
-    targetIdDigest: digestIdentifier(event.targetId),
-    zoneDigest: digestIdentifier(event.zone),
-    adapterKindDigest: digestIdentifier(event.adapterKind),
-    attempt: event.attempt,
-    status: event.outcome,
-    reasonCode: event.reasonCode,
-    ...(event.statusCode === undefined ? {} : { statusCode: event.statusCode }),
-  }));
+  return result.execution.trace.map((event) => {
+    const projected = executionPlacementEvidenceTraceEventSchema.safeParse({
+      stageIdDigest: digestIdentifier(event.stageId),
+      targetIdDigest: digestIdentifier(event.targetId),
+      zoneDigest: digestIdentifier(event.zone),
+      adapterKindDigest: digestIdentifier(event.adapterKind),
+      attempt: event.attempt,
+      status: event.outcome,
+      reasonCode: event.reasonCode,
+      ...(event.statusCode === undefined
+        ? {}
+        : { statusCode: event.statusCode }),
+    });
+    if (!projected.success) invalidResult();
+    return projected.data;
+  });
 }
 
 function placementEvidence(

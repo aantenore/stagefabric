@@ -1,5 +1,6 @@
 import {
   mkdtemp,
+  open,
   readFile,
   rm,
   stat,
@@ -9,7 +10,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   ExecutionPlacementEvidenceFileError,
@@ -135,5 +136,27 @@ describe('execution placement evidence file', () => {
       writeExecutionPlacementEvidenceFile(path, invalid),
     ).rejects.toMatchObject({ code: 'execution_evidence_invalid' });
     await expect(stat(path)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('does not unlink by pathname after a post-open write failure', async () => {
+    const directory = await temporaryDirectory();
+    const path = join(directory, 'evidence.json');
+    const probe = await open(join(directory, 'prototype-probe'), 'wx', 0o600);
+    const prototype = Object.getPrototypeOf(probe) as {
+      writeFile: typeof probe.writeFile;
+    };
+    await probe.close();
+    const writeFileSpy = vi
+      .spyOn(prototype, 'writeFile')
+      .mockRejectedValueOnce(new Error('synthetic_write_failure'));
+
+    try {
+      await expect(
+        writeExecutionPlacementEvidenceFile(path, evidence()),
+      ).rejects.toMatchObject({ code: 'execution_evidence_write_failed' });
+      expect(await readFile(path, 'utf8')).toBe('');
+    } finally {
+      writeFileSpy.mockRestore();
+    }
   });
 });
