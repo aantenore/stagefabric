@@ -85,12 +85,12 @@
     "typecheck:library": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "3.0.7",
-    "@hono/node-server": "2.0.8",
+    "@ai-sdk/openai-compatible": "3.0.12",
+    "@hono/node-server": "2.0.10",
     "@noble/hashes": "2.2.0",
-    "ai": "7.0.22",
+    "ai": "7.0.31",
     "commander": "15.0.0",
-    "hono": "4.12.30",
+    "hono": "4.12.31",
     "sigstore": "5.0.0",
     "yaml": "2.9.0",
     "zod": "4.4.3"
