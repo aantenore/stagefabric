@@ -13,7 +13,7 @@ importers:
         version: 3.0.12(zod@4.4.3)
       '@hono/node-server':
         specifier: 2.0.10
-        version: 2.0.10(hono@4.12.31)
+        version: 2.0.10(hono@4.12.34)
       '@noble/hashes':
         specifier: 2.2.0
         version: 2.2.0
@@ -24,8 +24,8 @@ importers:
         specifier: 15.0.0
         version: 15.0.0
       hono:
-        specifier: 4.12.31
-        version: 4.12.31
+        specifier: 4.12.34
+        version: 4.12.34
       sigstore:
         specifier: 5.0.0
         version: 5.0.0
@@ -862,8 +862,8 @@ packages:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
     engines: {node: '>=8'}
 
-  hono@4.12.31:
-    resolution: {integrity: sha512-zJIHFrl6bq3RDd2YusFNCDlM8qUprxKswyi/OPzPyzKDdyBXDqWx8bZlZ7R+saTdSTatUmb3O7K4SspGPaEOQg==}
+  hono@4.12.34:
+    resolution: {integrity: sha512-GqXJqY/xJkJmuloTrnV1ZEXG3fqte+VjkUqoRNZXcrUidiUOP4fMSIHHY4tsqZBK++kVyWmt/AAfSUuy57/eSA==}
     engines: {node: '>=16.9.0'}
 
   html-escaper@2.0.2:
@@ -1436,9 +1436,9 @@ snapshots:
 
   '@gar/promise-retry@1.0.3': {}
 
-  '@hono/node-server@2.0.10(hono@4.12.31)':
+  '@hono/node-server@2.0.10(hono@4.12.34)':
     dependencies:
-      hono: 4.12.31
+      hono: 4.12.34
 
   '@jridgewell/resolve-uri@3.1.2': {}
 
@@ -1877,7 +1877,7 @@ snapshots:
 
   has-flag@4.0.0: {}
 
-  hono@4.12.31: {}
+  hono@4.12.34: {}
 
   html-escaper@2.0.2: {}
 
